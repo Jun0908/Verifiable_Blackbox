@@ -25,7 +25,8 @@ export function RoverCamera() {
     let current: CameraStatus | undefined;
     const abort = new AbortController();
     const clear = () => {
-      lastReceived = 0; lastFrame = ""; setLive(false);
+      // Retain the last stamp so a frozen frame cannot become fresh again.
+      lastReceived = 0; setLive(false);
       canvas.current?.getContext("2d")?.clearRect(0, 0, canvas.current.width, canvas.current.height);
     };
     const hidden = () => {if (document.hidden) clear();};

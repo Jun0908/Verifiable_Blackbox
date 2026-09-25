@@ -1,6 +1,8 @@
 // Simulation only: no device/network client is imported or contacted.
 import {createServer} from 'node:http';
 import {randomUUID} from 'node:crypto';
+import {readFileSync} from 'node:fs';
+const jpeg=readFileSync(new URL('./fixtures/camera.jpg',import.meta.url));
 const token=process.env.VBB_BRIDGE_TOKEN;
 if(!token || token.length<32)throw Error('Launch through local-stack.mjs');
 let session,sequence=-1,state='idle',motors=[0,0,0,0],deadline=0,paused=false;
@@ -15,7 +17,10 @@ const server=createServer(async(req,res)=>{
   if(req.method==='GET'){
    if(req.url==='/status')return reply(200,snapshot());
    if(req.url==='/camera')return reply(200,camera);
-   if(req.url==='/camera/frame'){res.writeHead(204,{'cache-control':'no-store'});return res.end();}
+   if(req.url==='/camera/frame'){
+    if(!camera.enabled || camera.url==='simulation://offline'){res.writeHead(204,{'cache-control':'no-store'});return res.end();}
+    res.writeHead(200,{'content-type':'image/jpeg','cache-control':'no-store','x-camera-frame':camera.url==='simulation://stale'?'frozen':String(Date.now())});return res.end(jpeg);
+   }
    return reply(404,{error:'Not found'});
   }
   let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>2048)throw Error('Request too large');}

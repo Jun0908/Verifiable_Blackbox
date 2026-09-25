@@ -54,3 +54,7 @@ Read-only Sepolia checks confirmed chain ID, deployed code, Core/Hook/Evaluator 
 ## T08 - Rover controls (2026-09-26 JST)
 
 Python bridge unit tests: 21 passed using mocked controllers, including lease, stale sequence, telemetry, I2C and stop failures. Web typecheck passed. Browser at 1440px: disconnected controls disabled; Connect enables them; holding Forward reports simulated motors [35,35,35,35]; releasing returns [0,0,0,0]. End controls returns to Overview after idle confirmation. No browser page errors. Hardware was not connected or armed. Camera and gripper UI share this control session; detailed verification follows in T09.
+
+## T09 - Camera and gripper (2026-09-26 JST)
+
+45 Python bridge/camera/gripper/server tests and 5 Web proxy tests passed. Browser simulation: JPEG canvas updates while bridge stays idle (camera does not ARM); frozen frame disappears after 2 seconds and remains hidden. Fixed stale-frame redisplay by retaining the previous frame stamp. UI gripper sequence observed: one open, repeated close during hold, release on key-up, zero motor output throughout. Desktop and 390px screenshots saved in docs/evidence. These are synthetic camera frames and simulated command responses; real actuator movement was not tested.
