@@ -3,6 +3,7 @@ import {spawn} from 'node:child_process';
 import {createServer} from 'node:net';
 import {readFile, writeFile, mkdir} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
+import {existsSync} from 'node:fs';
 import {createPublicClient, createWalletClient, http} from 'viem';
 import {makeFixture, testJob} from './test/fixture.mjs';
 import {verifyDeviceSignature, verifyERC7913} from './signature.mjs';
@@ -12,7 +13,8 @@ const listener = createServer();
 await new Promise(resolve => listener.listen(0, '127.0.0.1', resolve));
 const port = listener.address().port;
 await new Promise(resolve => listener.close(resolve));
-const binary = fileURLToPath(new URL('../../.tools/foundry-v1.7.1/anvil.exe', import.meta.url));
+const localBinary = fileURLToPath(new URL('../../.tools/foundry-v1.7.1/anvil'+(process.platform==='win32'?'.exe':''), import.meta.url));
+const binary=existsSync(localBinary)?localBinary:'anvil';
 const processHandle = spawn(binary, ['--host','127.0.0.1','--port',String(port),'--chain-id','31337','--hardfork','cancun','--silent'],
   {stdio:'ignore', windowsHide:true});
 let startupError;

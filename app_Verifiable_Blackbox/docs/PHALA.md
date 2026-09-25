@@ -21,6 +21,8 @@ Use a separate ignored environment file with the actual RPC, server signing role
 
 Use `scripts/check-live-config.mjs` (read-only) after preparing the environment. Do not run the local deploy script against Sepolia; it only supports chain 31337. Actual Privy login/signature and a testnet payment remain attended checks.
 
+For a prepared private environment file, run `node --env-file=<PRIVATE_ENV_FILE> --import ./scripts/register-ts.mjs --experimental-transform-types scripts/check-live-config.mjs`. Optional `VBB_LIVE_DEPLOYMENT` selects a public deployment JSON. No signing account is loaded and no transaction is sent. The local launcher deliberately ignores live deployment addresses and pins its own public test keys.
+
 ## Attestation meaning
 
 `/api/demo/attestation` requests a fresh nonce. Dstack claims must bind the nonce, evaluator, chain and trusted signer, and match reportData. `quoteVerified` is explicitly false: this adapter collects the quote and checks claims, but does not cryptographically verify the Intel TDX quote. LOCAL_DEV is never labeled real TEE. A real quote must be independently verified with the Phala service's verification tooling and expected deployment measurements; save the time and result separately. No real-TEE verification or testnet payment is claimed by local tests.

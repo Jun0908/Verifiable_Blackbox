@@ -45,7 +45,7 @@ Anvil + Phala LOCAL_DEV approval integration passed: unsigned/wrong wallet/wrong
 ### T06 — 2026-09-26
 Selected-job and history tests passed for wallet/chain/core separation, history retention, sample/paid exclusion, malformed storage, storage failures and scoped operation markers. Typecheck passed. Browser reopened paid Job 5 from history after a fresh page load; creation receipt and current chain status were checked and local payment/creation hashes rendered without an explorer. Registered information remains separate from per-job device verification.
 
-## T07 ? Phala integration (2026-09-26 JST)
+## T07 - Phala integration (2026-09-26 JST)
 
 `npm run test:phala-local` passed: local chain deployment, Phala LOCAL_DEV, 100 mUSDC payout and receipt, tamper/replay rejection, physical-completion block, origin and RPC restrictions. Signed approval regression also passed with seven malformed remote verdicts and fresh attestation nonces. Quotes are not independently verified.
 

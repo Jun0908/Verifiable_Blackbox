@@ -11,3 +11,27 @@
 Run `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/setup-contracts.ps1` to fetch the exact Solidity dependency revisions. The script refuses to reuse a different revision. Dependencies retain their upstream licenses in `lib/`; generated dependencies and binaries are ignored by Git.
 
 Next.js setup reference: https://nextjs.org/docs/app/getting-started/installation. For this installed release, consult `node_modules/next/dist/docs/` as well.
+
+## Direct JavaScript dependencies and licenses
+
+Versions are pinned in the lockfile; license identifiers below come from installed package metadata. Upstream distributions retain their notices.
+
+| Package | Version | License |
+|---|---|---|
+| @noble/curves | 1.8.0 | MIT |
+| @privy-io/react-auth | 3.37.4 | Apache-2.0 |
+| @solana-program/memo | 0.8.0 | Apache-2.0 |
+| @solana-program/system | 0.8.0 | Apache-2.0 |
+| @solana-program/token | 0.6.0 | Apache-2.0 |
+| @solana/kit | 3.0.3 | MIT |
+| @types/node | 24.10.1 | MIT |
+| @types/react | 19.2.2 | MIT |
+| @types/react-dom | 19.2.2 | MIT |
+| next | 16.3.2 | MIT |
+| playwright-core | 1.61.1 | Apache-2.0 |
+| react | 19.2.8 | MIT |
+| react-dom | 19.2.8 | MIT |
+| typescript | 7.0.2 | Apache-2.0 |
+| viem | 2.55.19 | MIT |
+
+The vendored ERC-8183 source keeps its MIT SPDX headers; snapshot identity and the missing historical upstream commit are documented in [SNAPSHOT.md](../packages/contracts/vendor/erc8183/SNAPSHOT.md). Solidity dependencies retain their complete upstream license files under ignored lib/. No project-wide license grant is added by these dependency notices.

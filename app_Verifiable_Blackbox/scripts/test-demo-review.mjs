@@ -43,7 +43,8 @@ async function write(address,abi,functionName,args) {return mined(await wallet.w
 try {
   // Abort if this port already has any server: the test must own its chain.
   try {await publicClient.getChainId(); throw new Error('TEST_PORT_ALREADY_IN_USE');} catch(e) {if(e.message==='TEST_PORT_ALREADY_IN_USE')throw e;}
-  launch(resolve(root,'.tools/foundry-v1.7.1/anvil.exe'),['--host','127.0.0.1','--port','8547','--chain-id','31337','--silent']);
+  const localBinary=resolve(root,'.tools/foundry-v1.7.1/anvil'+(process.platform==='win32'?'.exe':''));
+  launch(existsSync(localBinary)?localBinary:'anvil',['--host','127.0.0.1','--port','8547','--chain-id','31337','--silent']);
   await until(()=>publicClient.getChainId());
   const token=await deploy('MockUSDC',[owner.address]);
   const implementation=await deploy('HackathonAgenticCommerce');
@@ -55,7 +56,7 @@ try {
   for(const account of [provider,relayer]) await publicClient.request({method:'anvil_setBalance',params:[account.address,toHex(10n**19n)]});
   temporary=await mkdtemp(resolve(root,'.approval-test-'));
   process.chdir(temporary);
-  Object.assign(process.env,{NEXT_PUBLIC_CHAIN_ID:'31337',NEXT_PUBLIC_RPC_URL:rpc,MOCK_USDC_ADDRESS:token,ERC8183_ADDRESS:core,
+  Object.assign(process.env,{DEMO_RPC_URL:rpc,DEMO_REVIEW_DIR:resolve(temporary,'.demo-reviews'),NEXT_PUBLIC_CHAIN_ID:'31337',NEXT_PUBLIC_RPC_URL:rpc,MOCK_USDC_ADDRESS:token,ERC8183_ADDRESS:core,
     EVIDENCE_HOOK_ADDRESS:hook,EVALUATOR_ADDRESS:evaluator,DEMO_PROVIDER_ADDRESS:provider.address,
     DEMO_RELAYER_ADDRESS:relayer.address,DEMO_TEE_SIGNER_ADDRESS:tee.address,
     DEMO_PROVIDER_PRIVATE_KEY:toHex(0xb0bn,{size:32}),DEMO_RELAYER_PRIVATE_KEY:toHex(0xd00dn,{size:32}),

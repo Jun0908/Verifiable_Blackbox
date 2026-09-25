@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {mkdir,writeFile} from 'node:fs/promises';
+import {mkdir,writeFile,copyFile} from 'node:fs/promises';
 import {chromium} from 'playwright-core';
 const url=process.env.DEMO_WEB_URL||'http://127.0.0.1:3000';
 assert.ok(['localhost','127.0.0.1'].includes(new URL(url).hostname));
@@ -10,14 +10,19 @@ await mkdir('artifacts/browser',{recursive:true});
 const browser=await chromium.launch({headless:true,...(process.env.CHROMIUM_EXECUTABLE?{executablePath:process.env.CHROMIUM_EXECUTABLE}:{})});
 const context=await browser.newContext({viewport:{width:1440,height:1000},recordVideo:{dir:'artifacts/browser',size:{width:1440,height:1000}}});
 const page=await context.newPage();page.setDefaultTimeout(45000);
+const demo=process.argv.includes('--demo');
+const pause=()=>demo?page.waitForTimeout(2500):Promise.resolve();
 const errors=[];page.on('pageerror',error=>errors.push(error.message));
 const checks=[];
 try {
  await page.goto(url,{waitUntil:'domcontentloaded',timeout:180000});
+ await pause();
  await page.getByRole('button',{name:'Sign in',exact:true}).click();
  await page.getByRole('button',{name:'1. Create job',exact:true}).click();
+ await pause();
  await page.getByRole('link',{name:'2. Operate robot →',exact:true}).click();
  await page.getByRole('heading',{name:/Job #/}).waitFor();
+ await pause();
  const job=(await page.getByRole('heading',{name:/Job #/}).innerText()).match(/\d+/)[0];
  assert.equal(await page.getByRole('button',{name:'Forward',exact:true}).isDisabled(),true);
  await page.getByRole('button',{name:'Connect robot',exact:true}).click();
@@ -27,12 +32,16 @@ try {
  assert.equal((await(await fetch(url+'/api/demo/rover/control')).json()).motorsRunning,true);
  await page.keyboard.up('Space');await page.waitForTimeout(250);
  assert.equal((await(await fetch(url+'/api/demo/rover/control')).json()).motorsRunning,false);
+ await pause();
  await page.getByRole('button',{name:'End controls & return to overview →',exact:true}).click();
  await page.getByRole('button',{name:'Verify & pay',exact:true}).waitFor();
+ await pause();
  assert.equal((await(await fetch(url+'/api/demo/rover/control')).json()).state,'idle');
  checks.push('Job creation, scoped route, explicit connect, hold/release and confirmed stop');
  await page.getByRole('button',{name:'Verify & pay',exact:true}).click();
  await page.getByRole('heading',{name:'Payment complete',exact:true}).waitFor();
+ await page.getByText('Verification details',{exact:true}).click();
+ await pause();
  await page.screenshot({path:'docs/evidence/approval-receipt.png',fullPage:true});
  const review=await(await fetch(url+`/api/demo/rover/review?jobId=${job}`)).json();
  assert.equal(review.record.phase,'paid');
@@ -40,17 +49,20 @@ try {
  await page.reload({waitUntil:'domcontentloaded'});
  await page.getByRole('button',{name:'Sign in',exact:true}).click();
  await page.getByRole('heading',{name:'Payment complete',exact:true}).waitFor();
+ await pause();
  checks.push('Reload reconciles paid receipt');
  await page.getByText('Other options',{exact:true}).click();
  await page.getByRole('button',{name:'Test invalid evidence',exact:true}).click();
  await page.getByText('PAYMENT BLOCKED',{exact:true}).waitFor();
+ await pause();
  await page.screenshot({path:'docs/evidence/tamper-rejected.png',fullPage:true});
  checks.push('Tampered sample evidence blocks payment');
  await page.setViewportSize({width:390,height:844});
  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth));
  await page.screenshot({path:'docs/evidence/receipt-mobile.png',fullPage:true});
+ await pause();
  assert.deepEqual(errors,[]);
  console.log(JSON.stringify({ok:true,job,checks,errors}));
  await writeFile('artifacts/browser/result.json',JSON.stringify({ok:true,job,checks,errors},null,2));
 }catch(error){await page.screenshot({path:'artifacts/browser/failure.png',fullPage:true});console.error(await page.locator('body').innerText());throw error;}
-finally{await context.close();await browser.close();}
+finally{await context.close();if(demo)await copyFile(await page.video().path(),'docs/evidence/demo-local.webm');await browser.close();}

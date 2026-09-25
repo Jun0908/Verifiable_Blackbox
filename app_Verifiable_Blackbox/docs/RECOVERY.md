@@ -4,6 +4,8 @@ The user signs the displayed approval context (chain, Core, evaluator, token, jo
 
 Server state lives in `apps/web/.demo-reviews/<chain>-<core>/<job>.json`. Phases are review, authorized, submitting, submitted, paying and paid. A per-job directory lock serializes requests across workers; writes use a unique temporary file and rename.
 
+`DEMO_REVIEW_DIR` can select another private directory. The disposable local launcher prints a new directory for each new chain. Preserve that exact directory if restarting only the Web server against the same chain. Do not reuse old approval records after resetting Anvil; old browser Jobs must also pass creation-transaction reconciliation.
+
 1. After a normal page reload, open the same wallet/chain/job and resume with the same signed approval. A known transaction hash is queried before any further action.
 2. If the verifier was unavailable, keep the saved evidence and submission hash. Restore the configured verifier and retry; never switch PHALA to MOCK_TEE silently.
 3. `TRANSACTION_RECONCILIATION_REQUIRED` means a submitting/paying phase was saved but the transaction hash was not. Stop retries. Check the exact chain, Core, job, hook commitment, evaluator receipt and role account transaction history. Do not clear the phase and broadcast blindly.

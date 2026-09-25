@@ -518,7 +518,7 @@ export function DemoDashboard() {
 
     <section className="metric-grid">
       <article className="metric-card"><span>{t("YOUR BALANCE", "残高")}</span><strong>{status ? formatToken(status.clientBalance) : "—"} <small>mUSDC</small></strong><p>{short(selectedWallet?.address)}</p></article>
-      <article className="metric-card accent"><span>{t("RESERVED REWARDS", "預かり報酬")}</span><strong>{status ? formatToken(status.escrowBalance) : "—"} <small>mUSDC</small></strong><p>{t("Held until verification", "検証が終わるまで保管")}</p></article>
+      <article className="metric-card accent"><span>{t("TOTAL ESCROW", "エスクロー合計")}</span><strong>{status ? formatToken(status.escrowBalance) : "—"} <small>mUSDC</small></strong><p>{t("Across all demo jobs", "すべてのデモJobの合計")}</p></article>
       <article className="metric-card"><span>{t("PROVIDER BALANCE", "提供者の残高")}</span><strong>{status ? formatToken(status.providerBalance) : "—"} <small>mUSDC</small></strong><p>{short(deployment?.provider)}</p></article>
     </section>
 
