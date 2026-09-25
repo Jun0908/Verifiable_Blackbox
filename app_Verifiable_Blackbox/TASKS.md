@@ -134,11 +134,11 @@
 
 依存: T03・T06。主な成果物: `parts/device-signature/`のCLI、Contract、検証レポート、テスト。
 
-- [ ] CLI、P-256照合、DeviceSignatureVerifier、HTMLレポートを独立部品として実装する。
-- [ ] chain／core／jobを含むdigestと署名形式をテストfixture・Contractと照合する。
-- [ ] ENSの`vbb.device.p256`を読み、取得した公開鍵で検証する。未登録・別鍵・RPC失敗では代替鍵へ切り替えない。
-- [ ] fixture、保存済み実機署名の再検証、新規実機署名取得をレポート上で区別する。
-- [ ] 領収書に登録情報を表示しても、当該Jobを照合していなければ未照合を維持する。通常画面への自動署名取得は今回必須にしない。
+- [x] CLI、P-256照合、DeviceSignatureVerifier、HTMLレポートを独立部品として実装する。
+- [x] chain／core／jobを含むdigestと署名形式をテストfixture・Contractと照合する。
+- [x] ENSの`vbb.device.p256`を読み、取得した公開鍵で検証する。未登録・別鍵・RPC失敗では代替鍵へ切り替えない。
+- [x] fixture、保存済み実機署名の再検証、新規実機署名取得をレポート上で区別する。
+- [x] 領収書に登録情報を表示しても、当該Jobを照合していなければ未照合を維持する。通常画面への自動署名取得は今回必須にしない。
 
 完了条件: fixtureの正常署名が通り、別Job・別鍵は失敗する。ENS読取とERC-7913の`eth_call`結果を独立レポートで確認できる。署名照合の処理は決済処理から独立している。
 

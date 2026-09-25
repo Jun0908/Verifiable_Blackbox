@@ -1,0 +1,7 @@
+{
+  "name": "vbb-device-signature-part",
+  "private": true,
+  "type": "module",
+  "scripts": { "test": "node --test test/*.test.mjs" },
+  "dependencies": { "@noble/curves": "1.8.0", "viem": "2.55.19" }
+}

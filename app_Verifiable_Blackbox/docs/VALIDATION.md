@@ -58,3 +58,7 @@ Python bridge unit tests: 21 passed using mocked controllers, including lease, s
 ## T09 - Camera and gripper (2026-09-26 JST)
 
 45 Python bridge/camera/gripper/server tests and 5 Web proxy tests passed. Browser simulation: JPEG canvas updates while bridge stays idle (camera does not ARM); frozen frame disappears after 2 seconds and remains hidden. Fixed stale-frame redisplay by retaining the previous frame stamp. UI gripper sequence observed: one open, repeated close during hold, release on key-up, zero motor output throughout. Desktop and 390px screenshots saved in docs/evidence. These are synthetic camera frames and simulated command responses; real actuator movement was not tested.
+
+## T10 - Device signature and ENS (2026-09-26 JST)
+
+18 Node tests and 5 Solidity tests passed (including 256 changed-Job fuzz cases). Disposable Anvil confirmed matching TypeScript/Solidity digest and ERC-7913 eth_call; HTML labels the public fixture. Live read-only Sepolia lookup of vbb-rover-001.eth at block 11780553 matched the saved Job 7 signature and ERC-7913 verifier 0xfD789267D20c5124FA6718D15faa0EF47A5EF13f. This was a saved hardware signature, not a fresh device response. Report remains ignored at parts/device-signature/local/saved-live-report.html; no device request or transaction was sent. Web per-Job signature status remains not checked.
