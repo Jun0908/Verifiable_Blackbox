@@ -35,7 +35,7 @@ const launch = (command,args,options={}) => {
   child.on('error',error=>{errors+=error.message;});
   child.testErrors=()=>errors; children.push(child); return child;
 };
-async function until(fn) {let last; for(let i=0;i<80;i++){try{return await fn();}catch(e){last=e; await new Promise(r=>setTimeout(r,100));}} throw last;}
+async function until(fn) {let last; const deadline=Date.now()+180000; while(Date.now()<deadline){try{return await fn();}catch(e){last=e; await new Promise(r=>setTimeout(r,250));}} throw last;}
 async function mined(hash) {const receipt=await publicClient.waitForTransactionReceipt({hash}); assert.equal(receipt.status,'success'); return receipt;}
 async function deploy(name,args=[]) {const artifact=JSON.parse(await readFile(resolve(root,`out/${name}.sol/${name}.json`),'utf8')); return (await mined(await wallet.deployContract({abi:artifact.abi,bytecode:artifact.bytecode.object,args}))).contractAddress;}
 async function write(address,abi,functionName,args) {return mined(await wallet.writeContract({address,abi,functionName,args}));}

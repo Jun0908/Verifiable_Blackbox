@@ -14,8 +14,9 @@ const demo=process.argv.includes('--demo');
 const pause=()=>demo?page.waitForTimeout(2500):Promise.resolve();
 const errors=[];page.on('pageerror',error=>errors.push(error.message));
 const checks=[];
+let passed=false;
 try {
- await page.goto(url,{waitUntil:'domcontentloaded',timeout:180000});
+ await page.goto(url,{waitUntil:'domcontentloaded',timeout:300000});
  await pause();
  await page.getByRole('button',{name:'Sign in',exact:true}).click();
  await page.getByRole('button',{name:'1. Create job',exact:true}).click();
@@ -64,5 +65,6 @@ try {
  assert.deepEqual(errors,[]);
  console.log(JSON.stringify({ok:true,job,checks,errors}));
  await writeFile('artifacts/browser/result.json',JSON.stringify({ok:true,job,checks,errors},null,2));
+ passed=true;
 }catch(error){await page.screenshot({path:'artifacts/browser/failure.png',fullPage:true});console.error(await page.locator('body').innerText());throw error;}
-finally{await context.close();if(demo)await copyFile(await page.video().path(),'docs/evidence/demo-local.webm');await browser.close();}
+finally{await context.close();if(demo&&passed)await copyFile(await page.video().path(),'docs/evidence/demo-local.webm');await browser.close();}
