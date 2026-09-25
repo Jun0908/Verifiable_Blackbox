@@ -1,4 +1,4 @@
-import {spawn} from 'node:child_process';
+import {spawn,spawnSync} from 'node:child_process';
 import {createServer} from 'node:net';
 import {existsSync, mkdirSync, readFileSync} from 'node:fs';
 import {resolve} from 'node:path';
@@ -13,7 +13,7 @@ const phalaPort = Number(process.env.VBB_PHALA_PORT || 3100);
 const rpc = `http://127.0.0.1:${rpcPort}`;
 const url = `http://127.0.0.1:${webPort}`;
 const children = new Set();
-const env = {...process.env};
+const env = {...process.env, RUST_LOG:'error'};
 const settings = resolve(root, '.env');
 if (existsSync(settings)) {
   const values = parseEnv(readFileSync(settings, 'utf8'));
@@ -53,7 +53,12 @@ async function ready(child,check) {
   throw Error(`Service readiness timeout: ${last?.message}`);
 }
 const binary=tool=>{const path=resolve(root,'.tools/foundry-v1.7.1',tool+(process.platform==='win32'?'.exe':'')); return existsSync(path)?path:tool;};
-async function stop() {for(const child of [...children].reverse()) child.kill();}
+async function stop() {
+  for(const child of [...children].reverse()) {
+    if(process.platform==='win32' && child.pid)spawnSync('taskkill',['/PID',String(child.pid),'/T','/F'],{stdio:'ignore',windowsHide:true});
+    else child.kill();
+  }
+}
 for(const signal of ['SIGINT','SIGTERM']) process.on(signal,()=>{void stop();process.exitCode=0;});
 
 try {

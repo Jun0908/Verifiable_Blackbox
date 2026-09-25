@@ -13,6 +13,8 @@
     "test:payment-block": "node --experimental-transform-types scripts/test-rover-payment-block.mjs",
     "test:job-flow": "node --import ./scripts/register-ts.mjs --experimental-transform-types scripts/test-job-flow.mjs",
     "test:job-history": "node --import ./scripts/register-ts.mjs --experimental-transform-types scripts/test-job-history.mjs",
+    "demo:phala-local": "node scripts/local-stack.mjs --phala",
+    "test:phala-local": "node scripts/local-stack.mjs --test --phala",
     "dev:web": "npm --workspace @vbb/web run dev -- --hostname 127.0.0.1",
     "typecheck:web": "npm --workspace @vbb/web run typecheck",
     "build:web": "npm --workspace @vbb/web run build"

@@ -94,8 +94,13 @@ export function getDemoChain() {
 }
 
 export function getPublicClient() {
-  const deployment = getDeployment();
-  return createPublicClient({chain: getDemoChain(), transport: http(deployment.rpcUrl)});
+  return createPublicClient({chain: getDemoChain(), transport: http(getServerRpcUrl())});
+}
+
+function getServerRpcUrl() {
+  const url=process.env.DEMO_RPC_URL || process.env.SEPOLIA_RPC_URL || getDeployment().rpcUrl;
+  if(new URL(url).pathname.endsWith('/api/demo/rpc'))throw Error('SERVER_RPC_REQUIRED');
+  return url;
 }
 
 export function getServerAccount(role: keyof typeof LOCAL_KEYS) {
@@ -120,7 +125,7 @@ export function getWalletClient(role: "deployer" | "provider" | "relayer") {
   return createWalletClient({
     account,
     chain: getDemoChain(),
-    transport: http(deployment.rpcUrl),
+    transport: http(getServerRpcUrl()),
   });
 }
 

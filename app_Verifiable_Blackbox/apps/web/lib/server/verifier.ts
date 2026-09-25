@@ -1,6 +1,6 @@
 import "server-only";
 
-import {randomBytes} from "node:crypto";
+import {randomBytes, createHash} from "node:crypto";
 import {isAddress, isHex, recoverTypedDataAddress, type Hex} from "viem";
 import {
   erc8183Abi,
@@ -39,8 +39,8 @@ export class VerifierAdapterError extends Error {
 function getRemoteReason(payload: unknown, fallback: string) {
   if (!payload || typeof payload !== "object") return fallback;
   const error = (payload as RemoteErrorPayload).error;
-  if (typeof error === "string") return error;
-  return error?.reason ?? fallback;
+  const reason = typeof error === "string" ? error : error?.reason;
+  return typeof reason === "string" && /^[A-Z][A-Z0-9_]+$/.test(reason) ? reason : fallback;
 }
 
 async function readRemoteJson(response: Response): Promise<unknown> {
@@ -83,6 +83,10 @@ function parseRemoteSuccess(payload: unknown): DemoVerifyResponse {
     || !verifier.signerAddress
     || !isAddress(verifier.signerAddress)
     || (verifier.attested && verifier.simulated)
+    || (verifier.mode === "LOCAL_DEV" && verifier.attested)
+    || !/^[1-9][0-9]{0,77}$/.test(verdict.jobId)
+    || !/^(0|[1-9][0-9]{0,19})$/.test(verdict.issuedAt ?? "")
+    || !/^(0|[1-9][0-9]{0,19})$/.test(verdict.validUntil ?? "")
   ) {
     throw new VerifierAdapterError("PHALA_INVALID_RESPONSE", 502);
   }
@@ -154,6 +158,22 @@ async function verifyWithPhala(
   }
   if (result.verifier.signerAddress.toLowerCase() !== deployment.mockTeeSigner.toLowerCase()) {
     throw new VerifierAdapterError("PHALA_SIGNER_MISMATCH", 409);
+  }
+  const client = getPublicClient();
+  const [block, job, commitment] = await Promise.all([
+    client.getBlock(),
+    client.readContract({address:deployment.erc8183,abi:erc8183Abi,functionName:"getJob",args:[evidence.jobId]}),
+    client.readContract({address:deployment.evidenceHook,abi:evidenceHookAbi,functionName:"evidenceCommitments",args:[evidence.jobId]}),
+  ]);
+  const issuedAt=BigInt(result.verdict.issuedAt), validUntil=BigInt(result.verdict.validUntil);
+  if(issuedAt > (1n<<64n)-1n || validUntil > (1n<<64n)-1n || issuedAt > block.timestamp+60n || validUntil <= block.timestamp || validUntil < issuedAt || validUntil-issuedAt > 900n || validUntil > job.expiredAt) {
+    throw new VerifierAdapterError("PHALA_VERDICT_TIME_INVALID",502);
+  }
+  if(job.status!==2 || job.evaluator.toLowerCase()!==deployment.evaluator.toLowerCase()
+    || job.hook.toLowerCase()!==deployment.evidenceHook.toLowerCase()
+    || job.provider.toLowerCase()!==deployment.provider.toLowerCase()
+    || commitment.toLowerCase()!==result.verdict.evidenceCommitment.toLowerCase()) {
+    throw new VerifierAdapterError("PHALA_CHAIN_CONTEXT_MISMATCH",409);
   }
   const recoveredSigner = await recoverTypedDataAddress({
     domain: {
@@ -257,7 +277,7 @@ async function verifyWithMock(evidence: DemoEvidenceV1): Promise<DemoVerifyRespo
     verifier: {
       mode: "MOCK_TEE",
       attested: false,
-      simulated: false,
+      simulated: true,
       signerAddress: deployment.mockTeeSigner,
       attestationPath: null,
     },
@@ -285,5 +305,20 @@ export async function fetchAttestation() {
       response.status >= 400 && response.status < 500 ? response.status : 502,
     );
   }
-  return payload;
+  if(!payload || typeof payload!=="object")throw new VerifierAdapterError("PHALA_ATTESTATION_INVALID",502);
+  const report=payload as Record<string,unknown>;
+  const deployment=getDeployment();
+  if(typeof report.signerAddress!=="string" || report.signerAddress.toLowerCase()!==deployment.mockTeeSigner.toLowerCase()
+    || !["LOCAL_DEV","PHALA_DSTACK"].includes(String(report.mode)) || typeof report.attested!=="boolean" || typeof report.simulated!=="boolean"
+    || (report.mode==="LOCAL_DEV" && report.attested))throw new VerifierAdapterError("PHALA_ATTESTATION_INVALID",502);
+  let nonceBound=false;
+  if(report.mode==="PHALA_DSTACK") {
+    const claims=report.claims as Record<string,unknown>|undefined;
+    if(!claims || claims.nonce!==nonce || claims.chainId!==deployment.chainId
+      || String(claims.evaluatorAddress).toLowerCase()!==deployment.evaluator.toLowerCase()
+      || String(claims.signerAddress).toLowerCase()!==deployment.mockTeeSigner.toLowerCase()
+      || report.reportData!==`0x${createHash('sha256').update(JSON.stringify(claims)).digest('hex')}`)throw new VerifierAdapterError("PHALA_ATTESTATION_BINDING_MISMATCH",502);
+    nonceBound=true;
+  }
+  return {...report,requestNonce:nonce,nonceBound,quoteVerified:false,verificationNote:"Quote collection and claims matching only; cryptographic TDX quote verification is a separate step."};
 }

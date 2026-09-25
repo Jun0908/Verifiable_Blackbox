@@ -62,7 +62,7 @@ try {
     DEMO_VERIFIER_MODE:'PHALA',PHALA_VERIFIER_URL:'http://127.0.0.1:3107'});
   const verifier=launch(process.execPath,['dist/index.js'],{cwd:resolve(process.env.PHALA_PROJECT_ROOT || resolve(root,'../../PhalaNetwork')),env:{...process.env,PORT:'3107',RPC_URL:rpc,CHAIN_ID:'31337',VERIFIER_MODE:'LOCAL_DEV',VERDICT_SIGNING_KEY:toHex(0xa11cen,{size:32})}});
   await until(async()=>{const r=await fetch('http://127.0.0.1:3107/health'); assert.equal(r.status,200);});
-  const {erc8183Abi,mockUsdcAbi}=await import('../apps/web/lib/contracts.ts');
+  const {erc8183Abi,mockUsdcAbi,parseDemoEvidence,verdictTypes}=await import('../apps/web/lib/contracts.ts');
   const {reviewMessage}=await import('../apps/web/lib/demo-review.ts');
   const {updateDemoReview,readDemoReview}=await import('../apps/web/lib/server/demo-review.ts');
   async function create() {
@@ -102,6 +102,31 @@ try {
   await assert.rejects(updateDemoReview(job,'verify-and-pay',paySignature),/TRANSACTION_RECONCILIATION_REQUIRED/);
   await writeFile(recordPath(job),JSON.stringify(interrupted));
   process.env.PHALA_VERIFIER_URL='http://127.0.0.1:3107';
+  const {verifyEvidence,fetchAttestation}=await import('../apps/web/lib/server/verifier.ts');
+  const originalFetch=globalThis.fetch;
+  const mutations=[
+    [p=>{p.verdict.jobId='999';},/PHALA_VERDICT_JOB_MISMATCH/],
+    [p=>{p.verdict.evidenceCommitment='0x'+'ab'.repeat(32);},/PHALA_VERDICT_EVIDENCE_MISMATCH/],
+    [p=>{p.verifier.signerAddress=outsider.address;},/PHALA_SIGNER_MISMATCH/],
+    [p=>{p.verdict.validUntil='0';},/PHALA_VERDICT_TIME_INVALID/],
+    [p=>{p.verdict.outcome=2;},/PHALA_INVALID_RESPONSE/],
+    [p=>{p.verifier.attested=true;},/PHALA_INVALID_RESPONSE/],
+    [async p=>{p.signature=await outsider.signTypedData({domain:{name:'VerifiableBlackboxDemo',version:'1',chainId:31337,verifyingContract:evaluator},types:verdictTypes,primaryType:'DemoVerdictV1',message:{...p.verdict,jobId:BigInt(p.verdict.jobId),issuedAt:BigInt(p.verdict.issuedAt),validUntil:BigInt(p.verdict.validUntil)}});},/PHALA_SIGNATURE_INVALID/],
+  ];
+  for(const [mutate,reason] of mutations) {
+    globalThis.fetch=async(input,init)=>{
+      const response=await originalFetch(input,init);
+      if(String(input)!=='http://127.0.0.1:3107/verify')return response;
+      const payload=await response.json();await mutate(payload);return Response.json(payload);
+    };
+    try {await assert.rejects(verifyEvidence(parseDemoEvidence(interrupted.evidence)),reason);}
+    finally {globalThis.fetch=originalFetch;}
+    assert.equal(await balance(),0n,'Invalid verifier response must not pay');
+  }
+  const attestations=await Promise.all([fetchAttestation(),fetchAttestation()]);
+  assert.notEqual(attestations[0].requestNonce,attestations[1].requestNonce);
+  assert.equal(attestations[0].quoteVerified,false);
+  assert.equal(attestations[0].mode,'LOCAL_DEV');
   const attempts=await Promise.allSettled([updateDemoReview(job,'verify-and-pay',paySignature),updateDemoReview(job,'verify-and-pay',paySignature)]);
   assert.equal(attempts.filter(result=>result.status==='fulfilled').length,1);
   const paid=await readDemoReview(job);
@@ -116,7 +141,7 @@ try {
   await publicClient.request({method:'evm_mine',params:[]});
   const expired=await readDemoReview(second);
   await assert.rejects(updateDemoReview(second,'verify-and-pay',await sign(owner,expired.context)),/JOB_EXPIRED/);
-  console.log('PASS: owner authorization, no unsigned payout, cross-job/context rejection, residual lock, unknown submission/payment recovery, saved progress, failed-verifier no payment, retry, concurrency, exactly-once payout, expiry. Local Phala policy + Anvil only.');
+  console.log('PASS: owner authorization, cross-job/context rejection, residual lock, unknown transaction recovery, Phala outage, 7 malformed/mismatched verifier responses, fresh attestation nonce labels, retry, concurrency, exactly-once payout and expiry. Local Phala policy + Anvil only.');
   if(verifier.exitCode!==null) throw Error(verifier.testErrors());
 } finally {
   process.chdir(root);

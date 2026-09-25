@@ -96,10 +96,10 @@
 
 依存: T05。主な成果物: `apps/web/lib/server/verifier.ts`、Attestation API、Phala接続用の設定・E2E runner。
 
-- [ ] `MOCK_TEE`／`PHALA`を明示設定にし、Phala障害時の自動fallbackを禁止する。
-- [ ] 応答schema、入力との一致、trusted signer、EIP-712署名、期限をSettlement前に確認する。
-- [ ] fresh nonce付きAttestationを取得し、mode／attested／simulated／signerを区別して表示する。quote取得とquote検証済みを混同しない。
-- [ ] E2E runnerでAnvil＋Phala LOCAL_DEV＋Webを起動し、Evidence commitmentの一致、承認→支払い、不正入力拒否を検証する。
+- [x] `MOCK_TEE`／`PHALA`を明示設定にし、Phala障害時の自動fallbackを禁止する。
+- [x] 応答schema、入力との一致、trusted signer、EIP-712署名、期限をSettlement前に確認する。
+- [x] fresh nonce付きAttestationを取得し、mode／attested／simulated／signerを区別して表示する。quote取得とquote検証済みを混同しない。
+- [x] E2E runnerでAnvil＋Phala LOCAL_DEV＋Webを起動し、Evidence commitmentの一致、承認→支払い、不正入力拒否を検証する。
 - [ ] 実Phala／SepoliaのchainId・Core・Hook・Evaluator・trusted signerを照合し、実環境用の接続手順を作る。
 
 完了条件: LOCAL_DEVでE2E成功。署名不一致・Phala通信失敗・不正Evidenceでは支払わない。実Phala確認は別記録にし、未実施なら未実施と明示する。
