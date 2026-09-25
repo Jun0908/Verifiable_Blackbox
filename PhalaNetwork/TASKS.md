@@ -51,12 +51,12 @@
 
 依存: T02。主な成果物: `src/chain.ts`、`src/policy.ts`、`src/errors.ts`、判定試験。
 
-- [ ] `ChainReader`を定義し、RPCのchainIdを設定値と照合する。
-- [ ] blockを取得し、そのblock番号を指定してJobとHookのcommitmentを読み取る。
-- [ ] Job ID、Submitted、Evaluator、Hook、機体ID、Challenge、Sequence、Checkpointを確認する。
-- [ ] Evidenceの未来ずれ、最大経過時間、Job期限を検査する。
-- [ ] 非ゼロのオンチェーンcommitmentと再計算結果を照合する。
-- [ ] RPC失敗を`SERVICE_ERROR`、Policy不合格を`INVALID_EVIDENCE`へ分類する。
+- [x] `ChainReader`を定義し、RPCのchainIdを設定値と照合する。
+- [x] blockを取得し、そのblock番号を指定してJobとHookのcommitmentを読み取る。
+- [x] Job ID、Submitted、Evaluator、Hook、機体ID、Challenge、Sequence、Checkpointを確認する。
+- [x] Evidenceの未来ずれ、最大経過時間、Job期限を検査する。
+- [x] 非ゼロのオンチェーンcommitmentと再計算結果を照合する。
+- [x] RPC失敗を`SERVICE_ERROR`、Policy不合格を`INVALID_EVIDENCE`へ分類する。
 
 完了条件: 正常Evidenceが通る。各項目の不一致と時刻の境界を個別に試験し、RPC障害を不正Evidenceと混同しない。
 
