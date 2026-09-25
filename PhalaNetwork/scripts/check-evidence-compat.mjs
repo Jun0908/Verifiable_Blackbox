@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { evidenceCommitment, parseEvidence } from '../dist/evidence.js';
+const root = resolve(process.env.APP_PROJECT_ROOT || resolve(import.meta.dirname, '../../app_Verifiable_Blackbox'));
+const app = await import(pathToFileURL(resolve(root, 'apps/web/lib/contracts.ts')).href);
+const fixture = JSON.parse(await readFile(new URL('../test/fixtures/demo-evidence-v1.json', import.meta.url), 'utf8'));
+const hash = evidenceCommitment(parseEvidence(fixture));
+assert.equal(app.evidenceCommitment(app.parseDemoEvidence(fixture)), hash);
+assert.ok((await readFile(resolve(root, 'packages/contracts/test/EvidenceEncoding.t.sol'), 'utf8')).includes(hash));
+console.log('PASS: Verifier, app and Solidity share the same evidence commitment:', hash);

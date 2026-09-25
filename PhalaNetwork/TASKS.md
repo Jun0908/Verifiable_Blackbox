@@ -27,11 +27,11 @@
 
 依存: なし。主な成果物: `package.json`、TypeScript設定、`src/config.ts`、`.env.example`、`.gitignore`、`.dockerignore`。
 
-- [ ] Node.js、TypeScript、viem、Zod、Vitestの依存関係とlockfileを用意する。
-- [ ] `dev`、`typecheck`、`test`、`build`、`start`、`check`を用意する。
-- [ ] Chain、Contract、Policy、TTL、port、本文上限、modeの設定schemaを実装する。
-- [ ] LOCAL_DEVでは開発鍵を必須にする。設定不正のエラーには値を出さず項目名だけを出す。
-- [ ] 秘密設定、依存、dist、ログ、試験生成物をGit対象外にする。
+- [x] Node.js、TypeScript、viem、Zod、Vitestの依存関係とlockfileを用意する。
+- [x] `dev`、`typecheck`、`test`、`build`、`start`、`check`を用意する。
+- [x] Chain、Contract、Policy、TTL、port、本文上限、modeの設定schemaを実装する。
+- [x] LOCAL_DEVでは開発鍵を必須にする。設定不正のエラーには値を出さず項目名だけを出す。
+- [x] 秘密設定、依存、dist、ログ、試験生成物をGit対象外にする。
 
 完了条件: クリーンインストール、型チェック、buildが成功する。設定欠落や不正な範囲で起動を拒否できる。
 
@@ -39,11 +39,11 @@
 
 依存: T01。主な成果物: `src/types.ts`、`src/contracts.ts`、`src/evidence.ts`、`test/fixtures/`。
 
-- [ ] `DemoEvidenceV1`、Wire形式、`DemoVerdictV1`、JobSnapshotの型を定義する。
-- [ ] 10進整数、safe integer、uint64／uint256、bytes32、文字列長、必須項目、未知フィールドを検査する。
-- [ ] `DEMO_EVIDENCE_V1`を含むABI encodingとKeccak-256を実装する。
-- [ ] `scenario`から生成するChallengeと、commitmentのfield順序を固定する。
-- [ ] 固定fixtureを使い、アプリのTypeScriptとContractが同じhashを計算することを確認する。
+- [x] `DemoEvidenceV1`、Wire形式、`DemoVerdictV1`、JobSnapshotの型を定義する。
+- [x] 10進整数、safe integer、uint64／uint256、bytes32、文字列長、必須項目、未知フィールドを検査する。
+- [x] `DEMO_EVIDENCE_V1`を含むABI encodingとKeccak-256を実装する。
+- [x] `scenario`から生成するChallengeと、commitmentのfield順序を固定する。
+- [x] 固定fixtureを使い、アプリのTypeScriptとContractが同じhashを計算することを確認する。
 
 完了条件: 正常入力のcommitmentが一致する。field変更でhashが変化し、欠落・余分なfield・負数・範囲外・壊れたhashを拒否する。
 
