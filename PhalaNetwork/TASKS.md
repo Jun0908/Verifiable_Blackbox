@@ -64,12 +64,12 @@
 
 依存: T03。主な成果物: `src/security.ts`、`src/verify.ts`、署名・Evaluator形式の試験。
 
-- [ ] `SecurityProvider`を定義し、開発鍵から署名accountを作る。
-- [ ] `VerifiableBlackboxDemo`／version `1`／Chain／EvaluatorのEIP-712 domainを定義する。
-- [ ] Policy合格後だけ、ChainのProviderを使ってPASS Verdictを生成する。
-- [ ] block timestamp、有効期限、最大TTL 900秒、乱数nonceを設定する。
-- [ ] Wire応答を生成し、LOCAL_DEVは`attested=false`、`simulated=false`を返す。
-- [ ] 不正Evidence、Chain取得失敗、有効期間なしでは署名関数が呼ばれないことを試験する。
+- [x] `SecurityProvider`を定義し、開発鍵から署名accountを作る。
+- [x] `VerifiableBlackboxDemo`／version `1`／Chain／EvaluatorのEIP-712 domainを定義する。
+- [x] Policy合格後だけ、ChainのProviderを使ってPASS Verdictを生成する。
+- [x] block timestamp、有効期限、最大TTL 900秒、乱数nonceを設定する。
+- [x] Wire応答を生成し、LOCAL_DEVは`attested=false`、`simulated=false`を返す。
+- [x] 不正Evidence、Chain取得失敗、有効期間なしでは署名関数が呼ばれないことを試験する。
 
 完了条件: 正常Verdictから期待signerを回復できる。別Chain・別Evaluatorでは署名検証が失敗する。再要求は新しいnonceを生成し、API単体で二重決済防止を保証した扱いにしない。
 
