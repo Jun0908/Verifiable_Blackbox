@@ -1,8 +1,13 @@
 {
   "name": "verifiable-blackbox-demo",
   "private": true,
-  "workspaces": ["apps/*"],
-  "engines": {"node": ">=22.22.1 <23", "npm": ">=10.9.4 <11"},
+  "workspaces": [
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=22.22.1 <23",
+    "npm": ">=10.9.4 <11"
+  },
   "scripts": {
     "contracts:build": "node scripts/foundry.mjs forge build",
     "contracts:test": "node scripts/foundry.mjs forge test",
@@ -17,6 +22,9 @@
     "test:phala-local": "node scripts/local-stack.mjs --test --phala",
     "dev:web": "npm --workspace @vbb/web run dev -- --hostname 127.0.0.1",
     "typecheck:web": "npm --workspace @vbb/web run typecheck",
-    "build:web": "npm --workspace @vbb/web run build"
+    "build:web": "npm --workspace @vbb/web run build",
+    "test:rover": "node --import ./scripts/register-ts.mjs --experimental-transform-types --test scripts/test-rover-gripper.mjs scripts/test-rover-camera.mjs",
+    "demo:rover": "node scripts/local-stack.mjs --phala --rover-mock",
+    "demo:rover-hardware": "node scripts/local-stack.mjs --phala --rover"
   }
 }

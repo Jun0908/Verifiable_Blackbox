@@ -16,6 +16,7 @@ export async function GET(request: Request) {
       ok: true,
       jobId: job.id.toString(),
       status: "Funded",
+      client: job.client,
       challenge: expectedChallenge(job.id, "success"),
     }, {
       headers: {"Cache-Control": "no-store"},

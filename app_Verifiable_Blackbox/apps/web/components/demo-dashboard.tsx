@@ -496,7 +496,7 @@ export function DemoDashboard() {
     && deployment?.chainId === registeredRobot.chainId;
 
   const roverSettled = job?.source === "rover" && status?.status === 3;
-  const verifierLabel = verifier?.attested ? t("Attested verifier", "実行環境の証明あり")
+  const verifierLabel = verifier?.attested ? t("TEE quote reported · not independently verified", "TEE quote取得・独立検証は未実施")
     : verifier?.simulated ? t("Simulation", "シミュレーション")
     : roverSettled ? t("Signed verdict recorded", "署名付き判定を記録") : t("Awaiting verification", "検証待ち");
 

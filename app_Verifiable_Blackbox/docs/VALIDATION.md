@@ -50,3 +50,7 @@ Selected-job and history tests passed for wallet/chain/core separation, history 
 `npm run test:phala-local` passed: local chain deployment, Phala LOCAL_DEV, 100 mUSDC payout and receipt, tamper/replay rejection, physical-completion block, origin and RPC restrictions. Signed approval regression also passed with seven malformed remote verdicts and fresh attestation nonces. Quotes are not independently verified.
 
 Read-only Sepolia checks confirmed chain ID, deployed code, Core/Hook/Evaluator relationships and trusted signer. The configured real Phala health endpoint failed twice with ECONNRESET; real TEE settlement remains unverified. No Sepolia transaction was sent.
+
+## T08 - Rover controls (2026-09-26 JST)
+
+Python bridge unit tests: 21 passed using mocked controllers, including lease, stale sequence, telemetry, I2C and stop failures. Web typecheck passed. Browser at 1440px: disconnected controls disabled; Connect enables them; holding Forward reports simulated motors [35,35,35,35]; releasing returns [0,0,0,0]. End controls returns to Overview after idle confirmation. No browser page errors. Hardware was not connected or armed. Camera and gripper UI share this control session; detailed verification follows in T09.

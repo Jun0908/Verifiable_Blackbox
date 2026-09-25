@@ -108,13 +108,13 @@
 
 依存: T02・T05・T06。主な成果物: Rover操作コンポーネント、ページ離脱時の停止処理、control API、Web／Bridge launcher。
 
-- [ ] launcherの既定Roverパスを`../../M5stack_RoverC/rover-python`とし、`ROVER_PYTHON_ROOT`で上書きできるようにする。
-- [ ] loopback、起動ごとのBridge token、同一Origin、session／sequenceを保持してcontrol APIを中継する。
-- [ ] 自由操作とJob操作を実装し、接続ボタンを押す前にはARMしない。
-- [ ] 速度35／60／85、長押し走行、離して停止、Stop、タブ非表示・ページ離脱時の停止を実装する。
-- [ ] Bridgeの450ms操作更新切れ・Telemetry切れ・古いsequence・I2C異常時の停止を模擬入力で確認する。
-- [ ] 停止確認後だけ操作終了を記録する。停止失敗は成功として表示しない。操作からEvidence・支払いは生成しない。
-- [ ] 3000／8765の競合、Python未導入、機体未接続を起動時に説明する。
+- [x] launcherの既定Roverパスを`../../M5stack_RoverC/rover-python`とし、`ROVER_PYTHON_ROOT`で上書きできるようにする。
+- [x] loopback、起動ごとのBridge token、同一Origin、session／sequenceを保持してcontrol APIを中継する。
+- [x] 自由操作とJob操作を実装し、接続ボタンを押す前にはARMしない。
+- [x] 速度35／60／85、長押し走行、離して停止、Stop、タブ非表示・ページ離脱時の停止を実装する。
+- [x] Bridgeの450ms操作更新切れ・Telemetry切れ・古いsequence・I2C異常時の停止を模擬入力で確認する。
+- [x] 停止確認後だけ操作終了を記録する。停止失敗は成功として表示しない。操作からEvidence・支払いは生成しない。
+- [x] 3000／8765の競合、Python未導入、機体未接続を起動時に説明する。
 
 完了条件: 模擬Bridgeで正常操作と各停止条件が成立する。自由操作はJob・支払いを変更しない。実機確認の結果は模擬試験と分けて記録する。
 

@@ -1,5 +1,7 @@
 import {SampleDashboard} from "@/components/sample-dashboard";
-
-export default function Rover() {
-  return <SampleDashboard rover />;
+import {RoverPage} from "@/components/rover-page";
+export default async function Page({searchParams}: {searchParams: Promise<{job?:string|string[]}>}) {
+ const {job}=await searchParams;
+ return process.env.NEXT_PUBLIC_PRIVY_APP_ID || process.env.NEXT_PUBLIC_LOCAL_DEMO === "true"
+  ? <RoverPage requestedJob={typeof job === "string" ? job : undefined} /> : <SampleDashboard rover />;
 }
