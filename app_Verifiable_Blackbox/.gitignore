@@ -1,0 +1,43 @@
+# Archived planning notes and unused files
+/Archive/
+
+# Dependencies and local tools (including workspaces)
+node_modules/
+/.tools/
+/lib/
+/artifacts/
+/deployments/demo.web.json
+/deployments/demo.local.json
+/deployments/demo.phala.local.json
+/docs/evidence/*.webm
+
+# Next.js, TypeScript and test output
+.next/
+out/
+*.tsbuildinfo
+coverage/
+
+# Foundry generated files (including parts/device-signature)
+cache/
+broadcast/
+
+# Environment settings; keep configuration templates versioned
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Local runtime state, device keys and temporary files
+/apps/web/.demo-reviews/
+/parts/device-signature/local/
+/tmp/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS metadata
+.DS_Store
+Thumbs.db
+Desktop.ini

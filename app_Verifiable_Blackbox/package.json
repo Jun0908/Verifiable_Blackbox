@@ -1,0 +1,11 @@
+{
+  "name": "verifiable-blackbox-demo",
+  "private": true,
+  "workspaces": ["apps/*"],
+  "engines": {"node": ">=22.22.1 <23", "npm": ">=10.9.4 <11"},
+  "scripts": {
+    "dev:web": "npm --workspace @vbb/web run dev -- --hostname 127.0.0.1",
+    "typecheck:web": "npm --workspace @vbb/web run typecheck",
+    "build:web": "npm --workspace @vbb/web run build"
+  }
+}

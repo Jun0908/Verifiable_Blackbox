@@ -24,11 +24,11 @@
 
 依存: なし。主な成果物: `package.json`、`apps/web/package.json`、`foundry.toml`、`.gitignore`、`README.md`。
 
-- [ ] npm workspaces、`apps/web`、TypeScript、Next.js App Routerの最小構成を作る。
-- [ ] Node／npm／Foundryの利用版、OpenZeppelin等の取得方法と固定revisionを記録する。クリーンインストールを確認して依存関係を固定する。
-- [ ] `.gitignore`、ダミー値の`.env.example`、セットアップREADMEを作る。秘密設定・履歴・実機データはGit対象外にする。
-- [ ] `dev:web`、`typecheck:web`、`build:web`を用意し、将来のContract・試験コマンドをREADMEで段階別に記載する。
-- [ ] 外部サービスなしでWebを起動できる状態を確認する。Rover／Phalaは後続タスクで接続する。
+- [x] npm workspaces、`apps/web`、TypeScript、Next.js App Routerの最小構成を作る。
+- [x] Node／npm／Foundryの利用版、OpenZeppelin等の取得方法と固定revisionを記録する。クリーンインストールを確認して依存関係を固定する。
+- [x] `.gitignore`、ダミー値の`.env.example`、セットアップREADMEを作る。秘密設定・履歴・実機データはGit対象外にする。
+- [x] `dev:web`、`typecheck:web`、`build:web`を用意し、将来のContract・試験コマンドをREADMEで段階別に記載する。
+- [x] 外部サービスなしでWebを起動できる状態を確認する。Rover／Phalaは後続タスクで接続する。
 
 完了条件: アプリrootから依存導入・型チェック・production buildが成功し、空のトップページを表示できる。
 
