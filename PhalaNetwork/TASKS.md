@@ -90,12 +90,12 @@
 
 依存: T05。主な成果物: `scripts/run-local-e2e.ps1`、`scripts/e2e-local.mjs`、アプリ接続手順。
 
-- [ ] `APP_PROJECT_ROOT`でContractの場所を指定できるようにし、既定値は`../app_Verifiable_Blackbox`とする。
-- [ ] 試験専用AnvilへCore・Hook・mUSDC・Evaluatorを配置し、LOCAL_DEV signerを登録する。
-- [ ] Job作成・Fund・commitment提出の後に`/verify`を呼び、Verifierの署名でsettleする。
-- [ ] アプリrunnerへ`PHALA_PROJECT_ROOT`としてこのフォルダの絶対パスを渡し、承認署名→Evidence→Verifier→支払いを確認する。
-- [ ] 改ざん、未提出Job、別Evaluator、期限切れ、同一Verdictの再使用、完了済みJobへの再検証を試験する。
-- [ ] runnerが起動したプロセスだけを終了する。port競合では起動を中止する。
+- [x] `APP_PROJECT_ROOT`でContractの場所を指定できるようにし、既定値は`../app_Verifiable_Blackbox`とする。
+- [x] 試験専用AnvilへCore・Hook・mUSDC・Evaluatorを配置し、LOCAL_DEV signerを登録する。
+- [x] Job作成・Fund・commitment提出の後に`/verify`を呼び、Verifierの署名でsettleする。
+- [x] アプリrunnerへ`PHALA_PROJECT_ROOT`としてこのフォルダの絶対パスを渡し、承認署名→Evidence→Verifier→支払いを確認する。
+- [x] 改ざん、未提出Job、別Evaluator、期限切れ、同一Verdictの再使用、完了済みJobへの再検証を試験する。
+- [x] runnerが起動したプロセスだけを終了する。port競合では起動を中止する。
 
 完了条件: 正常時に100 mUSDCの支払いとReceiptを確認できる。不正時は支払い・Receiptが増えず、同じJobへの重複支払いも起きない。試験はchainId 31337へ限定する。
 
