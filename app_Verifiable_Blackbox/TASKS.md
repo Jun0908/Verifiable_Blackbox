@@ -47,11 +47,11 @@
 
 依存: T01。主な成果物: `packages/contracts/`、`apps/web/lib/contracts.ts`、Evidenceのテストfixture。
 
-- [ ] ERC-8183参照実装のsnapshotと出典を管理し、Core拡張、mUSDC、Hook、Evaluatorを実装する。
-- [ ] ABI、Evidence parser／commitment、Verdict型／EIP-712、Deployment型を実装する。
-- [ ] 正常／改ざんfixtureを用意し、同一入力に対するTypeScript・Solidityのhash一致を確認する。
-- [ ] Local AnvilへのdeployとFoundry試験を用意する。ERC-7913はT10で独立追加する。
-- [ ] 不正署名、commitment不一致、期限切れ、同じVerdictの再使用を拒否する試験を行う。
+- [x] ERC-8183参照実装のsnapshotと出典を管理し、Core拡張、mUSDC、Hook、Evaluatorを実装する。
+- [x] ABI、Evidence parser／commitment、Verdict型／EIP-712、Deployment型を実装する。
+- [x] 正常／改ざんfixtureを用意し、同一入力に対するTypeScript・Solidityのhash一致を確認する。
+- [x] Local AnvilへのdeployとFoundry試験を用意する。ERC-7913はT10で独立追加する。
+- [x] 不正署名、commitment不一致、期限切れ、同じVerdictの再使用を拒否する試験を行う。
 
 完了条件: 正常時に100 mUSDCがProviderへ支払われ、Receiptが発行される。不正なケースは送金・Receiptが発生しない。残高とContract状態で検証する。
 

@@ -1,0 +1,10 @@
+{
+  "jobId": "1",
+  "scenario": "success",
+  "robotId": "rover-demo-001",
+  "challenge": "challenge-success-1",
+  "capturedAt": "1800000000",
+  "imageHash": "0x000000000000000000000000000000000000000000000000000000000000cafe",
+  "checkpoint": "checkpoint-a",
+  "sequence": "1"
+}

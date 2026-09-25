@@ -4,6 +4,9 @@
   "workspaces": ["apps/*"],
   "engines": {"node": ">=22.22.1 <23", "npm": ">=10.9.4 <11"},
   "scripts": {
+    "contracts:build": "node scripts/foundry.mjs forge build",
+    "contracts:test": "node scripts/foundry.mjs forge test",
+    "test:evidence": "node --experimental-transform-types scripts/test-evidence.mjs",
     "dev:web": "npm --workspace @vbb/web run dev -- --hostname 127.0.0.1",
     "typecheck:web": "npm --workspace @vbb/web run typecheck",
     "build:web": "npm --workspace @vbb/web run build"
