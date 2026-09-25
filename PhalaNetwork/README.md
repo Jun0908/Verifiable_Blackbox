@@ -75,6 +75,21 @@ npm run smoke:dstack
 
 参考：[dstack SDKの公式ソース](https://github.com/Dstack-TEE/dstack/tree/next/sdk/js)、[ローカル開発](https://docs.phala.network/dstack/local-development)。実装ではインストールした0.5.8の型・APIを確認しています。
 
+## Attestationの独立検証
+
+```powershell
+npm run build
+npm run verify:attestation -- https://your-verifier.example .local/expected.json
+```
+
+`attestation.expected.example.json`を参考に、期待signer・chainId・Evaluator・Compose hash・OS measurement（MRTD、RTMR0〜2）を別途用意します。Compose hashは配置時の正確なapp-compose文書、OS measurementは信頼するdstack OSのリリース情報から取得してください。検証対象endpointの応答から期待値を採用しません。CLIは毎回32 bytesのfresh nonceを生成します。
+
+検証先は`https://cloud-api.phala.com/api/v1/attestations/verify`に固定。HTTPSでquoteを送り、`quote.verified === true`を必要条件にし、検証済みbodyのreportData全64 bytes、mr_config_id全48 bytes、期待measurementを照合します。Phalaの検証サービスとTLSを信頼するオンライン方式です。応答の`attested`フラグだけでは成功にしません。
+
+`--allow-simulator`を明示した場合だけ、loopback HTTPとsimulatorを許可します。その場合でも`hardwareQuoteVerified=false`で、実TEEの確認結果にはなりません。設定・通信・照合失敗は終了コード1です。
+
+仕様参照：[Phala公式検証手順](https://github.com/Phala-Network/phala-cloud/blob/main/skills/usecase/verify-attestation.md)。このサービスのreportDataは`SHA256(固定順序のclaims JSON) + 32 bytesのゼロ`です。汎用推論APIのreportData形式とは異なります。mr_config_idは`01 + Compose SHA256 + 15 bytesのゼロ`を受け入れます。異なる形式は明示対応するまで拒否します。
+
 ## 検証記録
 
 2026-09-26：T01〜T06。クリーンインストール、型チェック、74単体/APIテスト、build、アプリ/Solidity commitment一致、Local決済と承認E2Eが成功。実Phala・Sepoliaの結果は含みません。

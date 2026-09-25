@@ -128,12 +128,12 @@
 
 依存: T08。主な成果物: `scripts/verify-attestation.mjs`、正常／改ざん応答の試験。
 
-- [ ] CLIが毎回fresh nonceを生成し、claimsのnonceと期待するsigner・Chain・Evaluatorを照合する。
-- [ ] claims digest、reportData、検証済みquote内のreportDataを照合する。
-- [ ] hardware quote検証先のAPIまたは検証ライブラリを公式仕様で確認し、成功・失敗条件を固定する。
-- [ ] 期待Compose hashをCLIへ外部入力し、app compose・claims・quoteのmeasurementと照合する。
-- [ ] nonce違い、signer違い、claims改ざん、quote検証失敗、Compose違い、検証サービス障害を拒否する。
-- [ ] simulatorの結果と実hardware quoteの結果を明確に分けて返す。
+- [x] CLIが毎回fresh nonceを生成し、claimsのnonceと期待するsigner・Chain・Evaluatorを照合する。
+- [x] claims digest、reportData、検証済みquote内のreportDataを照合する。
+- [x] hardware quote検証先のAPIまたは検証ライブラリを公式仕様で確認し、成功・失敗条件を固定する。
+- [x] 期待Compose hashをCLIへ外部入力し、app compose・claims・quoteのmeasurementと照合する。
+- [x] nonce違い、signer違い、claims改ざん、quote検証失敗、Compose違い、検証サービス障害を拒否する。
+- [x] simulatorの結果と実hardware quoteの結果を明確に分けて返す。
 
 完了条件: 模擬応答で正常・各改ざん条件を判定できる。実TEEの成功判定は、独立したquote検証と期待構成との照合の両方が通った場合に限る。
 

@@ -18,7 +18,8 @@
     "e2e:approval": "npm run build && node scripts/e2e-approval.mjs",
     "test:evidence-compat": "npm run build && node --experimental-transform-types scripts/check-evidence-compat.mjs",
     "e2e:docker": "npm run build && docker build -t vbb-phala-verifier:local . && node scripts/e2e-local.mjs --docker",
-    "smoke:dstack": "npm run build && node scripts/dstack-smoke.mjs"
+    "smoke:dstack": "npm run build && node scripts/dstack-smoke.mjs",
+    "verify:attestation": "node scripts/verify-attestation.mjs"
   },
   "dependencies": {
     "@noble/hashes": "1.8.0",
