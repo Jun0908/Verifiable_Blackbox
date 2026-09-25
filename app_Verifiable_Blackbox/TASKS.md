@@ -59,11 +59,11 @@
 
 依存: T02・T03。主な成果物: `apps/web/app/providers.tsx`、`apps/web/lib/server/`、`apps/web/app/api/demo/`。
 
-- [ ] Privy LoginとClient Wallet、Chain確認、公開設定APIを接続する。
-- [ ] Client署名でJobを作成し、`JobCreated`からJob IDを取得する。
-- [ ] Provider、Mock Verifier、RelayerをServer専用に分け、サンプルEvidenceのsubmit→verify→settleを実装する。
-- [ ] config／rpc／faucet／provider／verify／settleの必要APIと入出力・エラーを資料化する。
-- [ ] Local専用の起動設定と必要なAPI制限を設け、実鍵をBrowserへ渡さない。
+- [x] Privy LoginとClient Wallet、Chain確認、公開設定APIを接続する。
+- [x] Client署名でJobを作成し、`JobCreated`からJob IDを取得する。
+- [x] Provider、Mock Verifier、RelayerをServer専用に分け、サンプルEvidenceのsubmit→verify→settleを実装する。
+- [x] config／rpc／faucet／provider／verify／settleの必要APIと入出力・エラーを資料化する。
+- [x] Local専用の起動設定と必要なAPI制限を設け、実鍵をBrowserへ渡さない。
 
 完了条件: ブラウザからLocalの成功例と改ざん例を実行できる。Chain上のJob・残高・Receiptと画面が一致する。
 

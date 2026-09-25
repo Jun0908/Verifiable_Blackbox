@@ -35,3 +35,6 @@ Typecheck passed. Agent-browser confirmed dashboard/rover navigation, Japanese s
 
 ### T03 — 2026-09-26
 10 Foundry tests passed: 100 mUSDC payment and receipt, wrong signer/provider/commitment, expired verdict/job, replay rejection, demo creation and shared ABI commitment vector. TypeScript parser roundtrip, malformed input and tamper checks passed. Local Anvil deployment succeeded on chain 31337; deployment script refuses other chains. Typecheck passed. Filesystem module reads were slow on their first access; successful runs are recorded after completion.
+
+### T04 — 2026-09-26
+Typecheck passed. Local API E2E passed: confirmed JobCreated, 100 mUSDC, receipt, tamper and replay rejection, 409 physical-completion guard, cross-origin rejection and RPC method restrictions. Browser with the explicitly labeled public Anvil test wallet created sample Job 5, paid it and displayed its receipt; altered Job 6 was rejected with no receipt. No browser page errors. Privy interactive login remains an attended check; the local wallet is a separate fixture implementation.

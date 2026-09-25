@@ -231,6 +231,17 @@ export const mockUsdcAbi = [
 
 export const erc8183Abi = [
   {
+    type: "event", name: "JobCreated",
+    inputs: [
+      {name:"jobId", type:"uint256", indexed:true},
+      {name:"client", type:"address", indexed:true},
+      {name:"provider", type:"address", indexed:true},
+      {name:"evaluator", type:"address", indexed:false},
+      {name:"expiredAt", type:"uint256", indexed:false},
+      {name:"hook", type:"address", indexed:false},
+    ],
+  },
+  {
     type: "function",
     name: "jobCounter",
     stateMutability: "view",
