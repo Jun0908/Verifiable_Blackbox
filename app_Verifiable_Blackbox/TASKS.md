@@ -71,12 +71,12 @@
 
 依存: T04。主な成果物: `apps/web/lib/demo-review.ts`、`apps/web/lib/server/demo-review.ts`、review API、`scripts/test-demo-review.mjs`。
 
-- [ ] `prepare`／`verify-and-pay`を実装し、承認contextと署名文面を定義する。文面には対象Job・支払い条件・承認文書を検証する旨を含める。
-- [ ] Serverで所有者署名、期限、Chain・Core・Job・Evaluator・Token・Provider・金額を照合する。
-- [ ] 署名済み承認文書のhashをEvidenceの`imageHash`へ格納する。
-- [ ] reviewの6段階、排他lock、atomicな保存、送信Tx hashの保存、再照会を実装する。
-- [ ] 二重クリック・同時要求・再読込・送信結果不明・残留lockの復旧手順を用意する。未知の送信を自動再送しない。
-- [ ] `/api/demo/rover/complete`のPOSTは409 `PHYSICAL_MOVEMENT_NOT_VERIFIED`を返す。走行指令だけでは支払いに進めない。
+- [x] `prepare`／`verify-and-pay`を実装し、承認contextと署名文面を定義する。文面には対象Job・支払い条件・承認文書を検証する旨を含める。
+- [x] Serverで所有者署名、期限、Chain・Core・Job・Evaluator・Token・Provider・金額を照合する。
+- [x] 署名済み承認文書のhashをEvidenceの`imageHash`へ格納する。
+- [x] reviewの6段階、排他lock、atomicな保存、送信Tx hashの保存、再照会を実装する。
+- [x] 二重クリック・同時要求・再読込・送信結果不明・残留lockの復旧手順を用意する。未知の送信を自動再送しない。
+- [x] `/api/demo/rover/complete`のPOSTは409 `PHYSICAL_MOVEMENT_NOT_VERIFIED`を返す。走行指令だけでは支払いに進めない。
 
 完了条件: 正常な所有者承認だけが支払いに進む。署名なし／別Wallet／context変更／期限切れを拒否し、途中再試行でも重複支払いしない。送信結果不明なら復旧待ちになる。操作完了APIからの自動支払いを拒否する。
 

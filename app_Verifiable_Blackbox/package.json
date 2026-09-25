@@ -9,6 +9,8 @@
     "test:evidence": "node --experimental-transform-types scripts/test-evidence.mjs",
     "demo:local": "node scripts/local-stack.mjs",
     "test:web-api": "node scripts/local-stack.mjs --test",
+    "test:demo-review": "node --experimental-transform-types scripts/test-demo-review.mjs",
+    "test:payment-block": "node --experimental-transform-types scripts/test-rover-payment-block.mjs",
     "dev:web": "npm --workspace @vbb/web run dev -- --hostname 127.0.0.1",
     "typecheck:web": "npm --workspace @vbb/web run typecheck",
     "build:web": "npm --workspace @vbb/web run build"

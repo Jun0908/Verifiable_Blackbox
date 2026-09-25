@@ -38,3 +38,6 @@ Typecheck passed. Agent-browser confirmed dashboard/rover navigation, Japanese s
 
 ### T04 — 2026-09-26
 Typecheck passed. Local API E2E passed: confirmed JobCreated, 100 mUSDC, receipt, tamper and replay rejection, 409 physical-completion guard, cross-origin rejection and RPC method restrictions. Browser with the explicitly labeled public Anvil test wallet created sample Job 5, paid it and displayed its receipt; altered Job 6 was rejected with no receipt. No browser page errors. Privy interactive login remains an attended check; the local wallet is a separate fixture implementation.
+
+### T05 — 2026-09-26
+Anvil + Phala LOCAL_DEV approval integration passed: unsigned/wrong wallet/wrong job/changed context/expired job refused; residual lock refused; unknown submitting/paying state refused; verifier outage preserved evidence and paid nothing; retry and concurrent requests produced exactly one 100 mUSDC payment. API tests confirmed 409 automatic-payment guard and review Origin/input restrictions. Typecheck passed. Recovery procedure is in RECOVERY.md.
