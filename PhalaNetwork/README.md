@@ -92,6 +92,8 @@ npm run verify:attestation -- https://your-verifier.example .local/expected.json
 
 ## 検証記録
 
-2026-09-26：T01〜T06。クリーンインストール、型チェック、74単体/APIテスト、build、アプリ/Solidity commitment一致、Local決済と承認E2Eが成功。実Phala・Sepoliaの結果は含みません。
+2026-09-26：T01〜T09の実装と検証が完了。クリーンインストール、型チェック、build、アプリ/Solidity commitment一致、Local/Docker決済と承認E2E、公式dstack simulatorの鍵導出・署名・quote取得、Attestation正常/改ざん試験が成功しました。
 
-[設計](ARCHITECTURE.md) / [Task](TASKS.md)
+T10は配置前チェックとread-only接続確認、[配置・停止・復旧手順](docs/PHALA_DEPLOYMENT.md)を実装しました。実Cloud配置・実quote・Sepoliaの有人決済・CVM再起動確認は未実施です。停止中の既存CVMをread-onlyで確認しています。
+
+[設計](ARCHITECTURE.md) / [Task](TASKS.md) / [検証結果](docs/VALIDATION.md)

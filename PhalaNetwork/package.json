@@ -19,7 +19,9 @@
     "test:evidence-compat": "npm run build && node --experimental-transform-types scripts/check-evidence-compat.mjs",
     "e2e:docker": "npm run build && docker build -t vbb-phala-verifier:local . && node scripts/e2e-local.mjs --docker",
     "smoke:dstack": "npm run build && node scripts/dstack-smoke.mjs",
-    "verify:attestation": "node scripts/verify-attestation.mjs"
+    "verify:attestation": "node scripts/verify-attestation.mjs",
+    "preflight:phala": "node --env-file=.env.phala scripts/check-phala-env.mjs",
+    "check:phala-live": "node --env-file=.env.phala scripts/check-phala-live.mjs"
   },
   "dependencies": {
     "@noble/hashes": "1.8.0",

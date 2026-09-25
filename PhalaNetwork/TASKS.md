@@ -10,6 +10,8 @@
 
 実装順は`T01 → T02 → T03 → T04 → T05 → T06 → T07 → T08 → T09 → T10`。Phalaの機能はLocalで正常系と拒否条件を確認してから接続する。
 
+2026-09-26：T01〜T09は実装・検証済み。T10はpreflight、read-only接続確認、配置手順を実装済み。Cloud配置・実quote検証・Sepoliaの有人支払い・CVM再起動確認は未実施。Taskごとにcommit・pushし、検証範囲はREADMEへ記録する。
+
 | タスク | 成果 |
 |---|---|
 | T01 | TypeScriptサービスの開発環境 |
@@ -141,14 +143,14 @@
 
 依存: T06・T07・T08・T09。主な成果物: `scripts/check-phala-env.mjs`、配置・接続・停止・復旧の手順。
 
-- [ ] 配置時に公式CLI／SDK仕様と利用可能なCVM構成を確認し、コマンドと利用版を固定する。
-- [ ] image digest、HTTPS RPC、Chain・Contract、key pathを検査するpreflightを作る。Phala設定では開発鍵とsimulator endpointを拒否する。
+- [x] 配置時に公式CLI／SDK仕様と利用可能なCVM構成を確認し、コマンドと利用版を固定する。
+- [x] image digest、HTTPS RPC、Chain・Contract、key pathを検査するpreflightを作る。Phala設定では開発鍵とsimulator endpointを拒否する。
 - [ ] 対象CVMとリソースを明示して配置する。通常のcheckやLocal E2EではCloudを作成・更新・停止しない。
 - [ ] `/health`でmode、keySource、signerを確認し、Evaluatorのtrusted signerと照合する。最終Evaluator設定でAttestationを再取得する。
 - [ ] T09のCLIで実hardware quoteと期待Composeを検証する。
 - [ ] アプリからSepoliaの正常支払い、改ざん拒否、再提出時の二重支払い防止を確認する。
 - [ ] 同じapp identity・key pathで再起動し、signer一致と再取得したAttestationを確認する。
-- [ ] READMEへLocal、simulator、Cloudの起動・確認・停止手順と検証範囲を記載する。
+- [x] READMEへLocal、simulator、Cloudの起動・確認・停止手順と検証範囲を記載する。
 
 完了条件: 実Phalaのquote検証、アプリの署名検証、Sepoliaの支払いと拒否条件、再起動後のsigner一致を確認できる。未実施項目は未完了で残す。
 
@@ -159,4 +161,4 @@
 - 複数機体・複数Policy・鍵失効への対応。
 - RPC応答の検証を強化するChain接続方式。
 
-これらはT01〜T10の対象外とし、個別に設計する。最初に着手するのは **T01: 開発環境と設定**。
+これらはT01〜T10の対象外とし、個別に設計する。次の確認対象は **T10: Phala CloudとSepoliaの実環境確認**。
