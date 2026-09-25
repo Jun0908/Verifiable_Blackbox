@@ -1,5 +1,5 @@
 "use client";
-import {createContext, useContext, useMemo, useState, type ReactNode} from "react";
+import {createContext, useContext, useEffect, useMemo, useState, type ReactNode} from "react";
 import {usePrivy, useWallets, useSendTransaction, type ConnectedWallet} from "@privy-io/react-auth";
 import {createWalletClient, http, type Address, type Hex} from "viem";
 import {useLanguage} from "./language";
@@ -25,6 +25,8 @@ export function PrivyWalletBridge({children}:{children:ReactNode}) {
 
 export function LocalWalletProvider({children}:{children:ReactNode}) {
   const {t}=useLanguage();
+  const [ready,setReady]=useState(false);
+  useEffect(()=>setReady(true),[]);
   const [authenticated,setAuthenticated]=useState(false);
   const wallet=useMemo(()=>{
     const rpc=process.env.NEXT_PUBLIC_RPC_URL || 'http://127.0.0.1:8545';
@@ -40,7 +42,7 @@ export function LocalWalletProvider({children}:{children:ReactNode}) {
     return {address,walletClientType:'anvil-test',switchChain:async(id:number|Hex)=>{if(Number(id)!==31337)throw Error('Local chain only');await ensureLocal();},getEthereumProvider:async()=>provider,
       sendTransaction:async(tx:{to:Address;data:Hex})=>{await ensureLocal();return {hash:await client.sendTransaction({...tx,chain:null})};}};
   },[]);
-  return <WalletContext.Provider value={{ready:true,authenticated,login:()=>setAuthenticated(true),logout:()=>setAuthenticated(false),wallets:authenticated?[wallet]:[],sendTransaction:wallet.sendTransaction}}>
+  return <WalletContext.Provider value={{ready,authenticated,login:()=>setAuthenticated(true),logout:()=>setAuthenticated(false),wallets:authenticated?[wallet]:[],sendTransaction:wallet.sendTransaction}}>
     <aside className="sample-notice" role="status">{t('LOCAL DEMO · Public Anvil test wallet · Test tokens only · No personal wallet or physical work is verified.', 'ローカルデモ · 公開AnvilテストWallet · テストトークンのみ · 本人のWalletや物理作業は検証しません。')}</aside>
     {children}
   </WalletContext.Provider>;

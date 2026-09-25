@@ -1,6 +1,6 @@
 # Rover controls
 
-`npm run demo:rover` starts Anvil, Phala LOCAL_DEV, a **simulated** Rover bridge and the Web UI. The simulation never contacts hardware. See [PHALA.md](PHALA.md) for the separate verifier project prerequisite. Without it, use `node scripts/local-stack.mjs --rover-mock` for MOCK_TEE.
+`npm run demo:rover` starts Anvil, MOCK_TEE, a **simulated** Rover bridge and the Web UI. The simulation never contacts hardware. `npm run demo:rover-phala` adds Phala LOCAL_DEV; see [PHALA.md](PHALA.md) for the separate verifier project prerequisite.
 
 For attended hardware operation, `npm run demo:rover-hardware` starts the local test chain and the Python bridge. Its default project is `../../M5stack_RoverC/rover-python`; override with `ROVER_PYTHON_ROOT`. Create that project's `.venv` and install its requirements first; `ROVER_PYTHON` can select a different interpreter. Configure robot Wi-Fi and credentials in that project's private settings. Close the Windows control application and keep the robot in view.
 

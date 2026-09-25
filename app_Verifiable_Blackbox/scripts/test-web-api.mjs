@@ -19,22 +19,26 @@ await ok('/api/demo/faucet',{address:account.address});
 const balance=()=>client.readContract({address:deployment.mockUsdc,abi:mockUsdcAbi,functionName:'balanceOf',args:[deployment.provider]});
 const state=id=>client.readContract({address:deployment.erc8183,abi:erc8183Abi,functionName:'getJob',args:[id]});
 const receipt=id=>client.readContract({address:deployment.evaluator,abi:evaluatorAbi,functionName:'receiptIdByJob',args:[id]});
+const creations=new Map();
 async function create(scenario) {
   const block=await client.getBlock();
   const hash=await wallet.writeContract({address:deployment.erc8183,abi:erc8183Abi,functionName:'createAndFundDemo',args:[deployment.provider,deployment.evaluator,block.timestamp+3600n,`vbb://api-test/${scenario}`,deployment.evidenceHook]});
   const tx=await client.waitForTransactionReceipt({hash}); assert.equal(tx.status,'success');
   const [event]=parseEventLogs({abi:erc8183Abi,eventName:'JobCreated',logs:tx.logs});
   assert.ok(event,'Confirmed JobCreated is required');
+  creations.set(event.args.jobId,hash);
   return event.args.jobId;
 }
 const initial=await balance();
 const rover=await create('rover');
+assert.equal((await ok(`/api/demo/rover/complete?jobId=${rover}&createTx=${creations.get(rover)}`)).client.toLowerCase(),account.address.toLowerCase());
 for(const body of [{},{evidence:{jobId:rover.toString()}},{action:'complete'}]) {
   const blocked=await request('/api/demo/rover/complete',body);
   assert.equal(blocked.response.status,409); assert.equal(blocked.payload.error,'PHYSICAL_MOVEMENT_NOT_VERIFIED');
 }
 assert.equal((await state(rover)).status,1);assert.equal(await receipt(rover),zeroHash);assert.equal(await balance(),initial);
 const success=await create('success');
+assert.equal((await request(`/api/demo/rover/complete?jobId=${rover}&createTx=${creations.get(success)}`)).response.ok,false);
 const submitted=await ok('/api/demo/provider',{action:'submit',jobId:success.toString(),scenario:'success'});
 const verified=await ok('/api/demo/verify',{evidence:submitted.evidence});
 assert.equal(verified.verifier.mode,process.env.EXPECTED_VERIFIER_MODE||'MOCK_TEE');

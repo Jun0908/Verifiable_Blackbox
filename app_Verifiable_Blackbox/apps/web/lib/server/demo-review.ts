@@ -13,7 +13,7 @@ import {settleDemoVerdict} from "./settlement";
 function recordPath(jobId: string) {
   if (!/^[1-9][0-9]{0,77}$/.test(jobId)) throw new Error("INVALID_JOB_ID");
   const deployment = getDeployment();
-  return resolve(process.cwd(), ".demo-reviews", `${deployment.chainId}-${deployment.erc8183.toLowerCase()}`, `${jobId}.json`);
+  return resolve(process.env.DEMO_REVIEW_DIR || resolve(process.cwd(), ".demo-reviews"), `${deployment.chainId}-${deployment.erc8183.toLowerCase()}`, `${jobId}.json`);
 }
 
 export async function readDemoReview(jobId: string): Promise<DemoReviewRecord | null> {

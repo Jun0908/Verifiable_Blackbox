@@ -26,6 +26,7 @@ if (existsSync(settings)) {
 Object.assign(env, {
   NEXT_PUBLIC_CHAIN_ID:'31337', NEXT_PUBLIC_RPC_URL:rpc, DEMO_RPC_URL:rpc,
   NEXT_PUBLIC_LOCAL_DEMO:'true',
+  DEMO_REVIEW_DIR:resolve(root,'apps/web/.demo-reviews',`local-${Date.now()}-${randomBytes(4).toString('hex')}`),
   DEMO_DEPLOYMENT_FILE:'demo.web.json', DEMO_VERIFIER_MODE:phala?'PHALA':'MOCK_TEE',
   DEPLOYER_PRIVATE_KEY:'0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80',
   DEMO_PROVIDER_PRIVATE_KEY:'0x'+'b0b'.padStart(64,'0'),
@@ -96,6 +97,7 @@ try {
   const web=launch(process.execPath,[resolve(root,'node_modules/next/dist/bin/next'),'dev','--hostname','127.0.0.1','--port',String(webPort)],{cwd:resolve(root,'apps/web')});
   await ready(web,async()=>{const r=await fetch(`${url}/api/demo/config`,{signal:AbortSignal.timeout(15000)});if(!r.ok)throw Error('Web configuration unavailable');});
   console.log(`Local demo ready: ${url} (${phala?'Phala LOCAL_DEV':'MOCK_TEE'})`);
+  console.log(`Review records: ${env.DEMO_REVIEW_DIR}; chain is disposable. Keep this path for server-only recovery.`);
   if(test) await run(process.execPath,[resolve(root,'scripts/test-web-api.mjs')],{env:{...env,DEMO_WEB_URL:url,EXPECTED_VERIFIER_MODE:phala?'LOCAL_DEV':'MOCK_TEE'}});
   else await new Promise((yes,no)=>{web.once('exit',code=>code===0?yes():no(Error(`Web exited ${code}`)));anvil.once('exit',()=>{web.kill();no(Error('Local chain stopped'));});});
 } finally {await stop();}

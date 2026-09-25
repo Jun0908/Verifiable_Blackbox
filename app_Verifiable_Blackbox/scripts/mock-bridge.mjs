@@ -9,7 +9,7 @@ let session,sequence=-1,state='idle',motors=[0,0,0,0],deadline=0,paused=false;
 let camera={url:'simulation://test-pattern',configured:true,enabled:false,receiving:false};
 const snapshot=()=>({ok:true,simulated:true,state,message:'SIMULATED BRIDGE · No hardware connected',telemetryFresh:['ready','commanding'].includes(state),controlPaused:paused,motorsRunning:motors.some(Boolean),motors,rssi:null,physicalMovementVerified:false,paymentEnabled:false});
 const halt=()=>{motors=[0,0,0,0];state='idle';paused=false;};
-setInterval(()=>{if(state==='commanding'&&Date.now()>deadline){motors=[0,0,0,0];state='ready';paused=true;}},50).unref();
+setInterval(()=>{if(Date.now()>deadline){if(state==='commanding'){motors=[0,0,0,0];state='ready';paused=true;deadline=Date.now()+60000;}else if(state==='ready')halt();}},50).unref();
 const server=createServer(async(req,res)=>{
  const reply=(code,body)=>{res.writeHead(code,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(body));};
  if(req.headers.authorization!==`Bearer ${token}`)return reply(403,{error:'Forbidden'});
@@ -29,14 +29,14 @@ const server=createServer(async(req,res)=>{
   if(req.url==='/camera/power'){camera.enabled=body.enabled;return reply(200,camera);}
   if(req.url==='/activate'){
    if(state!=='idle')throw Error('Session already active');
-   session=randomUUID();sequence=-1;state='ready';paused=false;return reply(200,{...snapshot(),session});
+   session=randomUUID();sequence=-1;state='ready';paused=false;deadline=Date.now()+60000;return reply(200,{...snapshot(),session});
   }
   if(body.session!==session)throw Error('Invalid session');
   if(req.url==='/stop'){halt();return reply(200,snapshot());}
   if(!['ready','commanding'].includes(state))throw Error('Session ended');
   if(!Number.isSafeInteger(body.sequence)||body.sequence<=sequence)throw Error('Stale command');
   sequence=body.sequence;
-  if(req.url==='/release'){motors=[0,0,0,0];state='ready';paused=false;return reply(200,snapshot());}
+  if(req.url==='/release'){motors=[0,0,0,0];state='ready';paused=false;deadline=Date.now()+60000;return reply(200,snapshot());}
   if(paused)throw Error('Controls paused');
   if(req.url==='/drive'){
    if(![35,60,85].includes(body.speed)||!['forward','back','left','right','turn-left','turn-right'].includes(body.direction))throw Error('Invalid drive');

@@ -35,7 +35,7 @@ export function RoverPage({requestedJob}: {requestedJob?: string}) {
         const config = await configResponse.json();
         const stored = readActiveRobotJob({wallet:wallet!, chainId:config.chainId, core:config.erc8183});
         if (!stored || stored.jobId !== requestedJob) {if (!cancelled) {setJob(undefined); setProblem("missing");} return;}
-        const response = await fetch(`/api/demo/rover/complete?jobId=${stored.jobId}`, {cache:"no-store", signal:AbortSignal.timeout(10000)});
+        const response = await fetch(`/api/demo/rover/complete?jobId=${stored.jobId}&createTx=${stored.createTransactionHash}`, {cache:"no-store", signal:AbortSignal.timeout(10000)});
         if (cancelled) return;
         if (!response.ok) {setJob(undefined); setProblem(response.status >= 500 ? "unavailable" : "closed"); return;}
         const data = await response.json();
