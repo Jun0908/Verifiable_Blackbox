@@ -77,12 +77,12 @@
 
 依存: T04。主な成果物: `src/server.ts`、`src/index.ts`、API試験。
 
-- [ ] `GET /health`、`POST /verify`、`GET /attestation`を実装する。
-- [ ] JSON形式、受信bytes上限16,384、nonce文字種と長さを検査する。
-- [ ] 成功応答と400／422／503／404の共通エラー形式を実装する。
-- [ ] requestId、no-store、機密情報を含まない実行ログを用意する。
-- [ ] Localではloopbackにbindし、Containerでは設定で待受を切り替える。
-- [ ] 初期化失敗時に起動を中止し、SIGINT／SIGTERMでHTTPを終了する。
+- [x] `GET /health`、`POST /verify`、`GET /attestation`を実装する。
+- [x] JSON形式、受信bytes上限16,384、nonce文字種と長さを検査する。
+- [x] 成功応答と400／422／503／404の共通エラー形式を実装する。
+- [x] requestId、no-store、機密情報を含まない実行ログを用意する。
+- [x] Localではloopbackにbindし、Containerでは設定で待受を切り替える。
+- [x] 初期化失敗時に起動を中止し、SIGINT／SIGTERMでHTTPを終了する。
 
 完了条件: APIから正常Verdictが返る。不正JSON・上限超過・不正Evidence・RPC障害を区別し、失敗応答に署名を含めない。LOCAL_DEVのAttestation応答に実TEEの成功表示を付けない。
 
