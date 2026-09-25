@@ -29,3 +29,6 @@ Results will be appended after each task's verification.
 
 ### T01 — 2026-09-26
 Clean npm ci: 789 packages. Node 22.22.1, npm 10.9.4, Foundry 1.7.1. Pinned Solidity dependencies resolved. Typecheck and production build passed; browser rendered the initial page on loopback with no page errors. npm reported upstream deprecation notices. Dependency installation took about 12 minutes on this filesystem.
+
+### T02 — 2026-09-26
+Typecheck passed. Agent-browser confirmed dashboard/rover navigation, Japanese selection retained between routes, sample paid receipt, tamper failure message and disabled real controls. Screenshots at 1440px and 390px inspected; no horizontal overflow at 390px; no page errors. React component/hook and accessible status/disabled control review completed.

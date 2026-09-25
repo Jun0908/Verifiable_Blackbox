@@ -36,10 +36,10 @@
 
 依存: T01。主な成果物: `apps/web/app/page.tsx`、`apps/web/app/rover/page.tsx`、`apps/web/components/`。
 
-- [ ] Header、英語／日本語切替、Dashboard、`/rover`、共通のエラー・進捗表示を作る。
-- [ ] DashboardをJob作成、進捗、履歴、Receipt、サンプル決済に分ける。
-- [ ] fixtureだけで未作成・Funded・検証中・支払済み・失敗の表示を作る。未接続の操作ボタンは無効化する。
-- [ ] PC幅と390px幅で導線と主要操作を確認し、fixture表示はsampleと明記する。
+- [x] Header、英語／日本語切替、Dashboard、`/rover`、共通のエラー・進捗表示を作る。
+- [x] DashboardをJob作成、進捗、履歴、Receipt、サンプル決済に分ける。
+- [x] fixtureだけで未作成・Funded・検証中・支払済み・失敗の表示を作る。未接続の操作ボタンは無効化する。
+- [x] PC幅と390px幅で導線と主要操作を確認し、fixture表示はsampleと明記する。
 
 完了条件: 外部サービスなしで画面遷移・日英切替ができ、想定フローを説明できる。
 

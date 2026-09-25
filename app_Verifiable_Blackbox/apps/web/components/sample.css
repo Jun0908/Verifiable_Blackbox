@@ -1,0 +1,11 @@
+.sample-intro { padding: 56px 0 28px; max-width: 780px; }
+.sample-intro h1 { font-size: clamp(2rem, 4.5vw, 3.7rem); line-height: 1.08; margin: 18px 0; }
+.sample-notice { border-left: 3px solid #86f7c5; padding: 12px 18px; background: #86f7c510; }
+.sample-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; margin: 20px 0 50px; }
+.sample-panel { padding: 24px; min-width: 0; }
+.sample-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 18px 0; }
+.sample-page button { padding: 10px 16px; border: 1px solid #52645e; border-radius: 8px; background: #10241d; color: #dcf8ee; cursor: pointer; }
+.sample-page button[aria-pressed="true"] { background: #86f7c5; color: #10241d; }
+.sample-page button:disabled { opacity: .5; cursor: not-allowed; }
+.sample-panel li { margin: 8px 0; }
+@media (max-width: 600px) { .sample-grid { grid-template-columns: 1fr; } .sample-intro { padding-top: 28px; } .sample-panel { padding: 18px; } }
