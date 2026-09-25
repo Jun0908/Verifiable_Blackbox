@@ -115,12 +115,12 @@
 
 依存: T04・T05・T07。主な成果物: dstack版`SecurityProvider`、`scripts/dstack-smoke.mjs`、Attestation試験。
 
-- [ ] dstack SDKの版を固定し、app identity・key path・purpose・secp256k1による鍵導出を実装する。
-- [ ] KMS初期化失敗時の停止と、開発鍵へfallbackしない動作を確認する。
-- [ ] nonce・signer・Chain・Evaluator・Policy識別子・Compose情報をclaimsへ含める。
-- [ ] claimsのSHA-256をreportDataとしてquoteを要求し、event log・measurement・app composeを返す。
-- [ ] 対応するguest agentではversioned attestationを追加で返す。必須のquote取得失敗は503とする。
-- [ ] simulatorでsignerの再導出一致、nonce変更によるreportData変化、Verdict署名を試験する。
+- [x] dstack SDKの版を固定し、app identity・key path・purpose・secp256k1による鍵導出を実装する。
+- [x] KMS初期化失敗時の停止と、開発鍵へfallbackしない動作を確認する。
+- [x] nonce・signer・Chain・Evaluator・Policy識別子・Compose情報をclaimsへ含める。
+- [x] claimsのSHA-256をreportDataとしてquoteを要求し、event log・measurement・app composeを返す。
+- [x] 対応するguest agentではversioned attestationを追加で返す。必須のquote取得失敗は503とする。
+- [x] simulatorでsignerの再導出一致、nonce変更によるreportData変化、Verdict署名を試験する。
 
 完了条件: simulatorで署名とquote取得が動く。`simulated=true`、`attested=false`であり、hardware quoteを検証済みとは表示しない。
 

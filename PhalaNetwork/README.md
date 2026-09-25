@@ -55,6 +55,26 @@ Composeは`.env`のLocal設定を使い、hostの`127.0.0.1:3100`へ公開しま
 
 `e2e:docker`はimageをbuildし、専用Containerのhealth、non-root、書込禁止、再起動、決済・拒否条件を確認して終了します。`.env`をimageに含めません。Phala用Composeはdigest指定とdstack socketを使用します。
 
+## dstack simulator
+
+SDKは`@phala/dstack-sdk@0.5.8`に固定し、`getKey(path, purpose, "secp256k1")`を使用します。pathは`verifiable-blackbox/verdict/secp256k1/v1`、purposeは`verifiable-blackbox-verdict`です。SDK更新時は鍵導出互換性を確認してください。
+
+WindowsではWSL内の公式simulator 0.5.3と`socat`を使用できます。`scripts/run-simulator-wsl.sh`は既存のsimulator配布物を一時ディレクトリへ配置し、loopbackの8091に公開します。終了時は自分が起動したプロセスだけを停止します。
+
+```bash
+# WSL内、公式simulator導入済みの場合
+bash scripts/run-simulator-wsl.sh
+```
+
+```powershell
+$env:DSTACK_SIMULATOR_ENDPOINT='http://127.0.0.1:8091'
+npm run smoke:dstack
+```
+
+同じsignerの鍵導出、EIP-712署名、nonce変更によるreportData変化を確認します。simulatorは常に`simulated=true, attested=false, hardwareQuoteVerified=false`です。Cloudは開発鍵なしでdstack socketを使用し、KMS初期化失敗時には起動しません。`attested=true`はサービスの申告値で、独立したquote検証の代わりにはなりません。
+
+参考：[dstack SDKの公式ソース](https://github.com/Dstack-TEE/dstack/tree/next/sdk/js)、[ローカル開発](https://docs.phala.network/dstack/local-development)。実装ではインストールした0.5.8の型・APIを確認しています。
+
 ## 検証記録
 
 2026-09-26：T01〜T06。クリーンインストール、型チェック、74単体/APIテスト、build、アプリ/Solidity commitment一致、Local決済と承認E2Eが成功。実Phala・Sepoliaの結果は含みません。

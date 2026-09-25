@@ -17,9 +17,12 @@
     "e2e:local": "npm run build && node scripts/e2e-local.mjs",
     "e2e:approval": "npm run build && node scripts/e2e-approval.mjs",
     "test:evidence-compat": "npm run build && node --experimental-transform-types scripts/check-evidence-compat.mjs",
-    "e2e:docker": "npm run build && docker build -t vbb-phala-verifier:local . && node scripts/e2e-local.mjs --docker"
+    "e2e:docker": "npm run build && docker build -t vbb-phala-verifier:local . && node scripts/e2e-local.mjs --docker",
+    "smoke:dstack": "npm run build && node scripts/dstack-smoke.mjs"
   },
   "dependencies": {
+    "@noble/hashes": "1.8.0",
+    "@phala/dstack-sdk": "0.5.8",
     "viem": "2.56.3",
     "zod": "4.6.5"
   },

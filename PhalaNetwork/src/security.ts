@@ -47,5 +47,6 @@ export class LocalSecurityProvider implements SecurityProvider {
 }
 export async function createSecurityProvider(config: Config): Promise<SecurityProvider> {
   if (config.verifierMode === "LOCAL_DEV") return new LocalSecurityProvider(config);
-  throw serviceError("DSTACK_NOT_INITIALIZED");
+  const { createDstackSecurityProvider } = await import("./dstack-security.js");
+  return createDstackSecurityProvider(config);
 }
