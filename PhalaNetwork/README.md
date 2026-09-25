@@ -42,6 +42,19 @@ npm run e2e:approval
 
 アプリの通常runnerでも`PHALA_PROJECT_ROOT`を設定して`npm run demo:phala-local`を使用できます。アプリの接続先は`PHALA_VERIFIER_URL`です。
 
+## Docker
+
+```powershell
+docker compose up --build -d
+docker compose ps
+docker compose down
+npm run e2e:docker
+```
+
+Composeは`.env`のLocal設定を使い、hostの`127.0.0.1:3100`へ公開します。Container内は3000です。`DOCKER_RPC_URL`の既定値は`http://host.docker.internal:8545`。Docker Desktopでhost上のAnvilへ接続できます。Linuxではhostから接続できるAnvil待受を別途設定してください。
+
+`e2e:docker`はimageをbuildし、専用Containerのhealth、non-root、書込禁止、再起動、決済・拒否条件を確認して終了します。`.env`をimageに含めません。Phala用Composeはdigest指定とdstack socketを使用します。
+
 ## 検証記録
 
 2026-09-26：T01〜T06。クリーンインストール、型チェック、74単体/APIテスト、build、アプリ/Solidity commitment一致、Local決済と承認E2Eが成功。実Phala・Sepoliaの結果は含みません。

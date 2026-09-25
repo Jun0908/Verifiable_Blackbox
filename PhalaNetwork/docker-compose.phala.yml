@@ -1,0 +1,32 @@
+services:
+  verifier:
+    image: ${DOCKER_IMAGE:?Set immutable registry image@sha256 digest}
+    init: true
+    restart: unless-stopped
+    environment:
+      HOST: "0.0.0.0"
+      PORT: "3000"
+      RPC_URL: ${RPC_URL:?Set encrypted HTTPS RPC secret}
+      CHAIN_ID: ${CHAIN_ID:?Set CHAIN_ID}
+      ERC8183_ADDRESS: ${ERC8183_ADDRESS:?Set ERC8183_ADDRESS}
+      EVIDENCE_HOOK_ADDRESS: ${EVIDENCE_HOOK_ADDRESS:?Set EVIDENCE_HOOK_ADDRESS}
+      EVALUATOR_ADDRESS: ${EVALUATOR_ADDRESS:?Set EVALUATOR_ADDRESS}
+      EXPECTED_ROBOT_ID: ${EXPECTED_ROBOT_ID:-rover-demo-001}
+      EXPECTED_CHECKPOINT: ${EXPECTED_CHECKPOINT:-checkpoint-a}
+      EXPECTED_SEQUENCE: ${EXPECTED_SEQUENCE:-1}
+      MAX_EVIDENCE_AGE_SECONDS: ${MAX_EVIDENCE_AGE_SECONDS:-600}
+      MAX_CLOCK_SKEW_SECONDS: ${MAX_CLOCK_SKEW_SECONDS:-60}
+      VERDICT_TTL_SECONDS: ${VERDICT_TTL_SECONDS:-300}
+      VERIFIER_MODE: PHALA_DSTACK
+      DSTACK_KEY_PATH: ${DSTACK_KEY_PATH:-verifiable-blackbox/verdict/secp256k1/v1}
+    ports:
+      - "3000:3000"
+    volumes:
+      - /var/run/dstack.sock:/var/run/dstack.sock
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,noexec,nosuid

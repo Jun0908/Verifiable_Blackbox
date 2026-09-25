@@ -1,0 +1,26 @@
+services:
+  verifier:
+    build: .
+    image: vbb-phala-verifier:local
+    init: true
+    environment:
+      HOST: "0.0.0.0"
+      PORT: "3000"
+      RPC_URL: ${DOCKER_RPC_URL:-http://host.docker.internal:8545}
+      CHAIN_ID: ${CHAIN_ID:?Set CHAIN_ID}
+      ERC8183_ADDRESS: ${ERC8183_ADDRESS:?Set ERC8183_ADDRESS}
+      EVIDENCE_HOOK_ADDRESS: ${EVIDENCE_HOOK_ADDRESS:?Set EVIDENCE_HOOK_ADDRESS}
+      EVALUATOR_ADDRESS: ${EVALUATOR_ADDRESS:?Set EVALUATOR_ADDRESS}
+      VERIFIER_MODE: LOCAL_DEV
+      VERDICT_SIGNING_KEY: ${VERDICT_SIGNING_KEY:?Set development signing key}
+    ports:
+      - "127.0.0.1:3100:3000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,noexec,nosuid

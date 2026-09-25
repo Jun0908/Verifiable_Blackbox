@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
 import { readFile, mkdir, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -20,7 +21,9 @@ const owner = privateKeyToAccount('0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbe
 const teeKey = toHex(0xa11cen,{size:32}); const tee = privateKeyToAccount(teeKey);
 const wallet = createWalletClient({account:owner, chain, transport:http(rpc)});
 const artifacts = {};
-let anvil; let verifier;
+const docker = process.argv.includes('--docker');
+const containerName = `vbb-phala-test-${randomUUID()}`;
+let anvil; let verifier; let containerStarted = false;
 async function mined(hash) { const receipt = await publicClient.waitForTransactionReceipt({hash: await hash}); assert.equal(receipt.status,'success'); return receipt; }
 async function deploy(name, args=[]) {
   const artifact = artifacts[name] = JSON.parse(await readFile(resolve(app,`out/${name}.sol/${name}.json`),'utf8'));
@@ -48,11 +51,26 @@ try {
   const env = {...process.env, HOST:'127.0.0.1', PORT:String(port), RPC_URL:rpc, CHAIN_ID:'31337', ERC8183_ADDRESS:core,
     EVIDENCE_HOOK_ADDRESS:hook, EVALUATOR_ADDRESS:evaluator, VERIFIER_MODE:'LOCAL_DEV', VERDICT_SIGNING_KEY:teeKey};
   delete env.DSTACK_SIMULATOR_ENDPOINT;
-  verifier = launch(process.execPath,['dist/index.js'],{cwd:root,env});
+  if (docker) {
+    const containerEnv = {HOST:'0.0.0.0',PORT:'3000',RPC_URL:`http://host.docker.internal:${rpcPort}`,CHAIN_ID:'31337',
+      ERC8183_ADDRESS:core,EVIDENCE_HOOK_ADDRESS:hook,EVALUATOR_ADDRESS:evaluator,VERIFIER_MODE:'LOCAL_DEV',VERDICT_SIGNING_KEY:teeKey};
+    await run('docker',['run','--detach','--name',containerName,'--init','--read-only','--cap-drop=ALL','--security-opt=no-new-privileges:true',
+      '--tmpfs','/tmp:size=16m,noexec,nosuid','--add-host','host.docker.internal:host-gateway','-p',`127.0.0.1:${port}:3000`,
+      ...Object.entries(containerEnv).flatMap(([key,value]) => ['-e',`${key}=${value}`]),'vbb-phala-verifier:local']);
+    containerStarted = true;
+    verifier = {exitCode:null};
+  } else verifier = launch(process.execPath,['dist/index.js'],{cwd:root,env});
   await ready(verifier, async () => {
     const r = await fetch(`${url}/health`,{signal:AbortSignal.timeout(1000)}); const h = await r.json();
     assert.equal(h.verifier.signerAddress,tee.address); assert.equal(h.verifier.mode,'LOCAL_DEV');
   });
+  if (docker) {
+    await ready(verifier,async () => assert.equal((await run('docker',['inspect','--format','{{.State.Health.Status}}',containerName])).trim(),'healthy'));
+    assert.equal((await run('docker',['exec',containerName,'id','-u'])).trim(),'1000');
+    await run('docker',['exec',containerName,'node','-e',"const fs=require('fs'); if(fs.existsSync('/app/.env')) process.exit(1); try {fs.writeFileSync('/app/write-test','x');process.exit(1)} catch(e) {if(e.code!=='EROFS'&&e.code!=='EACCES')throw e}"]);
+    await run('docker',['restart',containerName]);
+    await ready(verifier,async () => {const h = await (await fetch(`${url}/health`,{signal:AbortSignal.timeout(1000)})).json(); assert.equal(h.verifier.signerAddress,tee.address);});
+  }
   const balance = () => publicClient.readContract({address:token,abi:tokenAbi,functionName:'balanceOf',args:[provider.address]});
   const receiptFor = id => publicClient.readContract({address:evaluator,abi:evaluatorAbi,functionName:'receiptIdByJob',args:[id]});
   const verify = async (e,status=200) => {
@@ -86,6 +104,12 @@ try {
   await verify(expired,422); assert.equal(await receiptFor(expired.jobId),zeroHash); assert.equal(await balance(),100_000_000n);
   const report = {ok:true,mode:'LOCAL_DEV',chainId:31337,paid:'100 mUSDC',jobId:String(e.jobId),transactionHash:tx.transactionHash,receiptId,
     checks:['unsubmitted','tampering','wrong evaluator','expired','reused verdict','completed job','exactly one payout']};
-  await mkdir(resolve(root,'artifacts'),{recursive:true}); await writeFile(resolve(root,'artifacts/local-e2e.json'),JSON.stringify(report,null,2)+'\n');
+  report.container = docker;
+  await mkdir(resolve(root,'artifacts'),{recursive:true}); await writeFile(resolve(root,`artifacts/${docker ? 'docker' : 'local'}-e2e.json`),JSON.stringify(report,null,2)+'\n');
   console.log(JSON.stringify(report));
-} finally {await stop(verifier); await stop(anvil);}
+} finally {
+  try {
+    if (containerStarted) {await run('docker',['stop',containerName]); await run('docker',['rm',containerName]);}
+    else if (!docker) await stop(verifier);
+  } finally {await stop(anvil);}
+}

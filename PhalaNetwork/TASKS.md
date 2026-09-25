@@ -103,11 +103,11 @@
 
 依存: T05。主な成果物: `Dockerfile`、`docker-compose.yml`、`docker-compose.phala.yml`、README。
 
-- [ ] multi-stage buildとruntime依存だけのimageを用意する。
-- [ ] non-root、read-only filesystem、capabilities削除、tmpfs、healthcheckを設定する。
-- [ ] Local Composeはhostのloopback 3100へ公開し、ContainerからAnvilへ接続できる設定を用意する。
-- [ ] Phala Composeはimage digestとdstack socketを指定する構成にする。
-- [ ] `.env`や開発鍵がimageへ入らないことを確認する。
+- [x] multi-stage buildとruntime依存だけのimageを用意する。
+- [x] non-root、read-only filesystem、capabilities削除、tmpfs、healthcheckを設定する。
+- [x] Local Composeはhostのloopback 3100へ公開し、ContainerからAnvilへ接続できる設定を用意する。
+- [x] Phala Composeはimage digestとdstack socketを指定する構成にする。
+- [x] `.env`や開発鍵がimageへ入らないことを確認する。
 
 完了条件: ContainerのhealthとLOCAL_DEVの検証APIが動き、終了・再起動ができる。Docker経由でもT06の決済フローを確認できる。
 
