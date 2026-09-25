@@ -94,8 +94,7 @@ app_Verifiable_Blackbox/
 ├── parts/device-signature/           # 独立した署名検証CLI・Contract・tests
 ├── scripts/                         # 起動・設定確認・各層の試験
 ├── deployments/                     # 公開可能な接続情報、秘密鍵なし
-├── docs/                            # 起動・Demo・復旧・データ仕様
-└── docs/build-log/                   # 各段階の成果・確認方法・残った制約
+└── docs/                            # 起動・Demo・復旧・データ仕様
 ```
 
 DashboardはJob作成、進捗、履歴、領収書、サンプル決済を責務ごとに分ける。Serverの進捗はファイルへ保存し、外部DBを必要としない構成にする。
@@ -190,9 +189,8 @@ launcherは`ROVER_PYTHON_ROOT`、ローカル試験用`PHALA_PROJECT_ROOT`を設
 
 ## 8. ドキュメントと公開範囲
 
-公開対象はソース・設計・進捗・再現可能なデモとする。鍵を持つDemo APIと実機操作サーバーをインターネットへ公開する構成は含めない。公開プレビューが必要なら、署名鍵と機体接続を持たないsample／read-only表示を別途設計する。
+公開対象はソース・設計・再現可能なデモとする。鍵を持つDemo APIと実機操作サーバーをインターネットへ公開する構成は含めない。公開プレビューが必要なら、署名鍵と機体接続を持たないsample／read-only表示を別途設計する。
 
-各タスクで「追加した機能・実行方法・確認結果・残った制約」を`docs/build-log/`へ残す。画面だけの段階、Mock、LOCAL_DEV、実Phala、実機署名の各段階を明記する。
 
 公開対象はソース、テスト、匿名化したfixture、設定テンプレート、依存lockfile、確認済みの公開deployment情報。`.env*`の実値、`.demo-reviews/`、`parts/device-signature/local/`、録画原本、認証token、ログ、`.tools/`、`node_modules/`、`.next/`、Foundry生成物を持ち込まない。サードパーティのlicense・出典は保持する。
 
