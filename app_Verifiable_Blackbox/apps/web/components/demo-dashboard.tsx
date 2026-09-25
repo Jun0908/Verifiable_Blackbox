@@ -1,4 +1,6 @@
 "use client";
+import {loadDemoState, storeDemoState} from "@/lib/active-job";
+
 
 import {useCallback, useEffect, useMemo, useState} from "react";
 import {useDemoWallet} from "./wallet-context";
@@ -37,7 +39,7 @@ import {
 
 const ZERO_BYTES32 = `0x${"0".repeat(64)}` as Hex;
 const TAMPERED_IMAGE_HASH = `0x${"0".repeat(60)}beef` as Hex;
-const DEMO_STORAGE_KEY = "vbb-demo-state-v3";
+
 
 async function postJson<T>(url: string, body: unknown): Promise<T> {
   const response = await fetch(url, {
@@ -58,46 +60,6 @@ function short(value?: string, size = 7) {
 function formatToken(value?: string) {
   if (!value) return "0";
   return (Number(value) / 1_000_000).toLocaleString("en-US", {maximumFractionDigits: 2});
-}
-
-function storeDemoState(
-  walletAddress: string,
-  job: ScenarioResult,
-  extras: Pick<
-    StoredDemoStateV3,
-    "verified" | "verifier" | "verdictSignature" | "completeTransactionHash"
-  >,
-) {
-  const previous = loadDemoState(walletAddress);
-  const sameJob = previous?.job.jobId === job.jobId.toString()
-    && previous.job.createTransactionHash === job.createTransactionHash;
-  const stored: StoredDemoStateV3 = {
-    ...(sameJob ? previous : {}),
-    version: 3,
-    walletAddress,
-    job: {...job, jobId: job.jobId.toString()},
-    ...extras,
-  };
-  localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(stored));
-}
-
-function loadDemoState(walletAddress: string): StoredDemoStateV3 | undefined {
-  const raw = localStorage.getItem(DEMO_STORAGE_KEY);
-  if (!raw) return undefined;
-  try {
-    const stored = JSON.parse(raw) as Partial<StoredDemoStateV3>;
-    if (
-      stored.version !== 3
-      || stored.walletAddress?.toLowerCase() !== walletAddress.toLowerCase()
-      || !stored.job?.jobId
-    ) {
-      return undefined;
-    }
-    return stored as StoredDemoStateV3;
-  } catch {
-    localStorage.removeItem(DEMO_STORAGE_KEY);
-    return undefined;
-  }
 }
 
 export function DemoDashboard() {
@@ -184,6 +146,9 @@ export function DemoDashboard() {
         }),
       ]);
 
+    if (chainJob.id !== jobId || chainJob.client.toLowerCase() !== selectedWallet.address.toLowerCase()) {
+      throw Error("JOB_OWNER_OR_CHAIN_MISMATCH");
+    }
     return {
       jobId: jobId.toString(),
       status: chainJob.status,
@@ -194,6 +159,13 @@ export function DemoDashboard() {
       receiptId,
     };
   }, [deployment, publicClient, selectedWallet]);
+
+  const validateCreation = useCallback(async (saved:ScenarioResult) => {
+    if(!publicClient || !deployment || !selectedWalletAddress) throw Error("WALLET_SCOPE_REQUIRED");
+    const tx=await publicClient.getTransactionReceipt({hash:saved.createTransactionHash});
+    const events=parseEventLogs({abi:erc8183Abi,eventName:"JobCreated",logs:tx.logs.filter(log=>log.address.toLowerCase()===deployment.erc8183.toLowerCase())});
+    if(tx.status!=="success" || !events.some(event=>event.args.jobId===saved.jobId && event.args.client.toLowerCase()===selectedWalletAddress.toLowerCase())) throw Error("JOB_CREATION_NOT_FOUND");
+  },[publicClient,deployment,selectedWalletAddress]);
 
   useEffect(() => {
     fetch("/api/demo/config", {cache: "no-store"})
@@ -220,7 +192,7 @@ export function DemoDashboard() {
     if (!authenticated) {setRestoring(false); return;}
     if (!deployment || !publicClient || !selectedWalletAddress) return;
     setRestoring(true);
-    const stored = loadDemoState(selectedWalletAddress);
+    const stored = loadDemoState(historyScope);
     if (!stored) {setRestoring(false); return;}
 
     let cancelled = false;
@@ -228,12 +200,12 @@ export function DemoDashboard() {
       ...stored.job,
       jobId: BigInt(stored.job.jobId),
     };
-    void readStatus(restoredJob.jobId)
-      .then((restoredStatus) => {
+    void Promise.all([readStatus(restoredJob.jobId), validateCreation(restoredJob)])
+      .then(([restoredStatus]) => {
         if (cancelled) return;
         setJob(restoredJob);
         setStatus(restoredStatus);
-        setVerified(stored.verified);
+        setVerified(restoredStatus.status === 3);
         setVerifier(stored.verifier);
         setVerdictSignature(stored.verdictSignature);
         setCompleteTransactionHash(stored.completeTransactionHash);
@@ -248,7 +220,7 @@ export function DemoDashboard() {
     return () => {
       cancelled = true;
     };
-  }, [ready, walletsReady, authenticated, deployment, publicClient, readStatus, selectedWalletAddress]);
+  }, [ready, walletsReady, authenticated, deployment, publicClient, readStatus, selectedWalletAddress, historyScope, validateCreation]);
 
   useEffect(() => {
     if (
@@ -274,7 +246,7 @@ export function DemoDashboard() {
         } else if (nextStatus.status === 3) {
           setVerified(true);
           setMessage("Payment recorded. See the receipt for details.");
-          storeDemoState(selectedWalletAddress, job, {verified: true});
+          storeDemoState(historyScope, job, {verified: true});
         }
       } catch (error) {
         if (!cancelled) {
@@ -294,7 +266,7 @@ export function DemoDashboard() {
   }, [job, readStatus, selectedWalletAddress, status?.status]);
 
   useEffect(() => {
-    const sync = () => setOperationEnded(Boolean(job?.source === "rover" && controlHasEnded({jobId: job.jobId.toString(), createTransactionHash:job.createTransactionHash})));
+    const sync = () => setOperationEnded(Boolean(historyScope && job?.source === "rover" && controlHasEnded({...historyScope, jobId: job.jobId.toString(), createTransactionHash:job.createTransactionHash})));
     sync(); window.addEventListener("storage", sync); window.addEventListener("focus", sync);
     return () => {window.removeEventListener("storage", sync); window.removeEventListener("focus", sync);};
   }, [job]);
@@ -364,7 +336,7 @@ export function DemoDashboard() {
 
   const saveCurrentJob = useCallback(() => {
     if (!historyScope || !job) return;
-    const saved = loadDemoState(historyScope.wallet);
+    const saved = loadDemoState(historyScope);
     const sameJob = saved?.job.jobId === job.jobId.toString() && saved.job.createTransactionHash === job.createTransactionHash;
     if (!sameJob || (status && status.jobId !== job.jobId.toString())) return;
     setHistory(saveJobToHistory(historyScope, {
@@ -386,10 +358,10 @@ export function DemoDashboard() {
     try {
       saveCurrentJob();
       const restored = {...saved.job, jobId: BigInt(saved.job.jobId)};
-      const latestStatus = await readStatus(restored.jobId);
-      storeDemoState(selectedWalletAddress, restored, {verified:saved.verified, verifier:saved.verifier,
+      const [latestStatus] = await Promise.all([readStatus(restored.jobId), validateCreation(restored)]);
+      storeDemoState(historyScope, restored, {verified:latestStatus.status === 3, verifier:saved.verifier,
         verdictSignature:saved.verdictSignature, completeTransactionHash:saved.completeTransactionHash});
-      setJob(restored); setStatus(latestStatus); setVerified(saved.verified);
+      setJob(restored); setStatus(latestStatus); setVerified(latestStatus.status === 3);
       setVerifier(saved.verifier); setVerdictSignature(saved.verdictSignature);
       setCompleteTransactionHash(saved.completeTransactionHash); setDemoReview(undefined);
       setFailureMessage(undefined);
@@ -404,7 +376,7 @@ export function DemoDashboard() {
       saveCurrentJob();
       setBusy("Creating and funding a Rover Job…");
       const created = await createFundedJob("success", "rover");
-      if (selectedWallet) storeDemoState(selectedWallet.address, created, {verified:false});
+      if (selectedWallet) storeDemoState(historyScope, created, {verified:false});
       if (historyScope) setHistory(saveJobToHistory(historyScope, {version:3, walletAddress:historyScope.wallet,
         job:{...created, jobId:created.jobId.toString()}, verified:false}));
       setJob(created); setStatus(undefined); setVerified(false); setVerifier(undefined);
@@ -429,7 +401,7 @@ export function DemoDashboard() {
       setCompleteTransactionHash(undefined);
       const created = await createSubmittedFixtureJob("success");
       setJob(created);
-      if (selectedWallet) storeDemoState(selectedWallet.address, created, {verified: false});
+      if (selectedWallet) storeDemoState(historyScope, created, {verified: false});
       setStatus(await readStatus(created.jobId));
       setMessage(
         "Sample evidence submitted. Ready for verification.",
@@ -458,7 +430,7 @@ export function DemoDashboard() {
       setCompleteTransactionHash(settlement.transactionHash);
       setStatus(await readStatus(job.jobId));
       if (selectedWallet) {
-        storeDemoState(selectedWallet.address, job, {
+        storeDemoState(historyScope, job, {
           verified: true,
           verifier: verification.verifier,
           verdictSignature: verification.signature,
@@ -510,7 +482,7 @@ export function DemoDashboard() {
     setVerifier(record.verification?.verifier);
     setVerdictSignature(record.verification?.signature);
     setCompleteTransactionHash(record.completeTransactionHash);
-    storeDemoState(selectedWalletAddress, job, {verified: verifiedRecord, verifier: record.verification?.verifier,
+    storeDemoState(historyScope, job, {verified: verifiedRecord, verifier: record.verification?.verifier,
       verdictSignature: record.verification?.signature, completeTransactionHash: record.completeTransactionHash});
     void readStatus(job.jobId).then(next => setStatus(current => current?.jobId === next.jobId ? next : current)).catch(() => {});
   }, [job, selectedWalletAddress, readStatus]);
@@ -538,7 +510,7 @@ export function DemoDashboard() {
   return <main className="shell">
     <SiteHeader />
     <section className="hero"><div>
-      <h1>{t("Verified work.", "確かめた仕事に。 ")}<br />{t("Automatic payment.", "確かな支払いを。")}</h1>
+      <h1>{t("Verified work.", "確かめた仕事に。 ")}<br />{t("Approved payment.", "承認して、支払いを。")}</h1>
       <p>{t("Create a job, operate the robot, then verify and pay.", "仕事を作成し、ロボットを操作。検証して支払いへ進みます。")}</p>
     </div><div className="login-card"><span>{t("YOUR ACCOUNT", "アカウント")}</span><strong>{selectedWallet ? short(selectedWallet.address, 8) : t("Not connected", "未接続")}</strong>
       {!ready || (!walletsReady && !selectedWallet) ? <button disabled>{t("Loading…", "読み込み中…")}</button> : authenticated ? <button className="secondary" onClick={() => logout()}>{t("Sign out", "ログアウト")}</button> : <button onClick={() => login()}>{t("Sign in", "ログイン")}</button>}
@@ -547,7 +519,7 @@ export function DemoDashboard() {
     <section className="metric-grid">
       <article className="metric-card"><span>{t("YOUR BALANCE", "残高")}</span><strong>{status ? formatToken(status.clientBalance) : "—"} <small>mUSDC</small></strong><p>{short(selectedWallet?.address)}</p></article>
       <article className="metric-card accent"><span>{t("RESERVED REWARDS", "預かり報酬")}</span><strong>{status ? formatToken(status.escrowBalance) : "—"} <small>mUSDC</small></strong><p>{t("Held until verification", "検証が終わるまで保管")}</p></article>
-      <article className="metric-card"><span>{t("PROVIDER BALANCE", "提供者の残高")}</span><strong>{status ? formatToken(status.providerBalance) : "—"} <small>mUSDC</small></strong><p>rover-demo-001.factory.eth</p></article>
+      <article className="metric-card"><span>{t("PROVIDER BALANCE", "提供者の残高")}</span><strong>{status ? formatToken(status.providerBalance) : "—"} <small>mUSDC</small></strong><p>{short(deployment?.provider)}</p></article>
     </section>
 
     <section className="workspace-grid"><article className="panel flow-panel">
@@ -582,11 +554,11 @@ export function DemoDashboard() {
     <article className="panel proof-panel"><div className="panel-heading"><div><span className="eyebrow">{t("RECEIPT", "領収書")}</span><h2>{t("Payment & evidence", "支払いと証拠")}</h2></div><span className={`status ${status?.status === 3 ? "success" : ""}`}>{t(status ? jobStatusNames[status.status] : "Waiting")}</span></div>
       <dl className="proof-list">
         <div><dt>{t("Job", "仕事")}</dt><dd>{job ? `#${job.jobId}` : "—"}</dd></div>
-        <div><dt>{t("Evidence source", "証拠の種類")}</dt><dd>{demoReview?.authorizationSignature ? t("Operation demo", "操作デモ") : job?.source === "fixture" ? t("Sample", "サンプル") : job ? t("Robot adapter", "ロボット中継") : "—"}</dd></div>
+        <div><dt>{t("Evidence source", "証拠の種類")}</dt><dd>{demoReview?.authorizationSignature ? t("Signed approval document", "署名付き承認文書") : job?.source === "fixture" ? t("Sample", "サンプル") : job ? t("Robot adapter", "ロボット中継") : "—"}</dd></div>
         <div><dt>{t("Receipt ID", "領収書ID")}</dt><dd>{status?.receiptId !== ZERO_BYTES32 ? short(status?.receiptId,10) : "—"}</dd></div>
-        <div><dt>{t("Payment transaction", "支払い取引")}</dt><dd>{explorerLink(completeTransactionHash) ? <a href={explorerLink(completeTransactionHash)} target="_blank" rel="noreferrer">{short(completeTransactionHash)} ↗</a> : "—"}</dd></div>
+        <div><dt>{t("Payment transaction", "支払い取引")}</dt><dd>{explorerLink(completeTransactionHash) ? <a href={explorerLink(completeTransactionHash)} target="_blank" rel="noreferrer">{short(completeTransactionHash)} ↗</a> : <span title={completeTransactionHash}>{short(completeTransactionHash,10)}</span>}</dd></div>
         <div><dt>{t("Attestation", "実行環境の証明")}</dt><dd>{attestationPath ? <a href={attestationPath} target="_blank" rel="noreferrer">{t("View report", "レポートを見る")} ↗</a> : "—"}</dd></div>
-        <div><dt>{t("Job transaction", "仕事の作成取引")}</dt><dd>{explorerLink(job?.createTransactionHash) ? <a href={explorerLink(job?.createTransactionHash)} target="_blank" rel="noreferrer">{short(job?.createTransactionHash)} ↗</a> : "—"}</dd></div>
+        <div><dt>{t("Job transaction", "仕事の作成取引")}</dt><dd>{explorerLink(job?.createTransactionHash) ? <a href={explorerLink(job?.createTransactionHash)} target="_blank" rel="noreferrer">{short(job?.createTransactionHash)} ↗</a> : <span title={job?.createTransactionHash}>{short(job?.createTransactionHash,10)}</span>}</dd></div>
       </dl>
       <details className="sample-tools"><summary>{t("Verification details", "検証の詳細")}</summary><dl className="proof-list">
         <div><dt>{t("Robot ID in evidence", "証拠内のロボットID")}</dt><dd title={robotId}>{robotId ?? "—"}</dd></div>
@@ -596,7 +568,7 @@ export function DemoDashboard() {
           <div><dt>{t("Device signature verifier", "機体署名の検証Contract")}</dt><dd><a href={registeredRobot.verifierUrl} target="_blank" rel="noreferrer">ERC-7913 · Sepolia ↗</a></dd></div>
           <div><dt>{t("Device signature · this job", "このJobの機体署名")}</dt><dd>{t("Not checked", "未照合")}</dd></div>
         </>}
-        {demoReview?.authorizationSignature && <div><dt>{t("Verification scope", "検証の対象")}</dt><dd>{t("Demo record commitment", "デモ記録のハッシュ")}</dd></div>}
+        {demoReview?.authorizationSignature && <div><dt>{t("Verification scope", "検証の対象")}</dt><dd>{t("Signed approval document", "署名付き承認文書")}</dd></div>}
         {demoReview?.authorizationSignature && <div><dt>{t("Physical movement proof", "実移動の証明")}</dt><dd>{t("Not included in this demo", "このデモの検証対象外")}</dd></div>}
         <div><dt>{t("Evidence", "証拠")}</dt><dd>{short(status?.evidenceCommitment,10)}</dd></div>
         <div><dt>{t("Signature", "署名")}</dt><dd>{short(verdictSignature,10)}</dd></div>

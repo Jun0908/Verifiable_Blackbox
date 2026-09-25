@@ -1,23 +1,15 @@
-export const DEMO_STORAGE_KEY = "vbb-demo-state-v3";
-export type ActiveRobotJob = {jobId: string; createTransactionHash: string};
-
-export function readActiveRobotJob(wallet: string): ActiveRobotJob | undefined {
-  try {
-    const stored = JSON.parse(localStorage.getItem(DEMO_STORAGE_KEY) ?? "null");
-    if (stored?.version !== 3 || stored.walletAddress?.toLowerCase() !== wallet.toLowerCase()
-      || stored.job?.source !== "rover" || !/^[1-9][0-9]*$/.test(stored.job.jobId)
-      || !/^0x[0-9a-f]{64}$/i.test(stored.job.createTransactionHash)) return;
-    return {jobId: stored.job.jobId, createTransactionHash: stored.job.createTransactionHash};
-  } catch {return;}
+﻿import type {JobHistoryScope} from './job-history';
+import {loadDemoState} from './active-job';
+export const DEMO_STORAGE_KEY = 'vbb-active-job-v1:';
+export type ActiveRobotJob = JobHistoryScope & {jobId:string;createTransactionHash:string};
+export function readActiveRobotJob(scope:JobHistoryScope):ActiveRobotJob|undefined {
+  const stored=loadDemoState(scope);
+  if(!stored || stored.job.source!=='rover' || stored.verified)return;
+  return {...scope,jobId:stored.job.jobId,createTransactionHash:stored.job.createTransactionHash};
 }
-
-function operationKey(job: ActiveRobotJob) {
-  return `vbb-control-ended:${job.createTransactionHash}:${job.jobId}`;
+function operationKey(job:ActiveRobotJob) {
+  return `vbb-control-ended:${job.chainId}:${job.core.toLowerCase()}:${job.wallet.toLowerCase()}:${job.createTransactionHash}:${job.jobId}`;
 }
-// This records only the end of a control session, never verified physical work.
-export function recordControlEnded(job: ActiveRobotJob) {
-  localStorage.setItem(operationKey(job), "ended");
-}
-export function controlHasEnded(job: ActiveRobotJob) {
-  return localStorage.getItem(operationKey(job)) === "ended";
-}
+// A control-session marker never claims verified physical movement or payment.
+export function recordControlEnded(job:ActiveRobotJob) {localStorage.setItem(operationKey(job),'ended');}
+export function controlHasEnded(job:ActiveRobotJob) {return localStorage.getItem(operationKey(job))==='ended';}

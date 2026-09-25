@@ -41,3 +41,6 @@ Typecheck passed. Local API E2E passed: confirmed JobCreated, 100 mUSDC, receipt
 
 ### T05 — 2026-09-26
 Anvil + Phala LOCAL_DEV approval integration passed: unsigned/wrong wallet/wrong job/changed context/expired job refused; residual lock refused; unknown submitting/paying state refused; verifier outage preserved evidence and paid nothing; retry and concurrent requests produced exactly one 100 mUSDC payment. API tests confirmed 409 automatic-payment guard and review Origin/input restrictions. Typecheck passed. Recovery procedure is in RECOVERY.md.
+
+### T06 — 2026-09-26
+Selected-job and history tests passed for wallet/chain/core separation, history retention, sample/paid exclusion, malformed storage, storage failures and scoped operation markers. Typecheck passed. Browser reopened paid Job 5 from history after a fresh page load; creation receipt and current chain status were checked and local payment/creation hashes rendered without an explorer. Registered information remains separate from per-job device verification.
