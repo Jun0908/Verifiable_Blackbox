@@ -1,0 +1,7 @@
+{
+  "name": "blackbox-world-idp", "version": "0.1.0", "private": true, "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": { "setup": "node scripts/setup.mjs", "start": "node --env-file-if-exists=.env server.mjs", "test": "node --test test/*.test.mjs" },
+  "dependencies": { "openid-client": "^6.8.1" },
+  "devDependencies": { "jose": "^6.1.0" }
+}

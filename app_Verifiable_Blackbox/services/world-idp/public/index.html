@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>World · Verifiable Blackbox</title><link rel="stylesheet" href="/styles.css"></head>
+<body><header><a id="back" class="brand">VERIFIABLE BLACKBOX</a><button id="language" class="text-button">English</button></header>
+<main><div class="eyebrow">HUMAN-CONTROLLED DISCLOSURE <span id="mode" class="pill"></span></div>
+<h1 id="heading"></h1><p id="lead" class="lead"></p><div id="notice" class="notice"></div><div id="error" role="alert" hidden></div>
+<div class="layout"><section class="evidence panel"><div class="section-head"><span>JOB RECORDING</span><span id="state" class="pill"></span></div>
+<div class="screen"><div id="locked">▣ <p id="locked-text"></p></div><img id="animation" alt="Rover recording" hidden></div>
+<div class="metadata"><div><small>JOB</small><strong id="job">—</strong></div><div><small>OWNER</small><code id="owner">—</code></div><div><small>ASSET SHA-256</small><code id="digest">—</code></div><div><small>RECEIPT</small><code id="receipt">—</code></div></div><p id="scope" class="caption"></p></section>
+<section class="control panel"><h2 id="role"></h2>
+<div id="viewer-panel"><button id="request" class="primary" disabled></button><div id="pending" hidden><p id="pending-text"></p><a id="approval-link" class="secondary" target="_blank" rel="noopener"></a><label id="link-label" for="approval-url"></label><input id="approval-url" readonly><button id="cancel" class="text-button"></button></div><p id="remaining" class="countdown"></p></div>
+<div id="approver-panel" hidden><form id="login"><label id="code-label" for="operator-code"></label><input id="operator-code" type="password" autocomplete="current-password" required><button id="login-button" class="secondary"></button></form>
+<div id="decision" hidden><p id="viewer-id"></p><p id="permission"></p><button id="approve" class="primary"></button><button id="deny" class="secondary"></button></div><button id="revoke" class="secondary" hidden></button></div>
+<div class="timeline"><div class="section-head">DISCLOSURE RECORD</div><ol id="events"></ol></div></section></div>
+</main><script type="module" src="/app.js"></script></body></html>
