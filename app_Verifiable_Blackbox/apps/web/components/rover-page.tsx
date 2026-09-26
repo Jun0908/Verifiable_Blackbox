@@ -54,7 +54,7 @@ export function RoverPage({requestedJob}: {requestedJob?: string}) {
     if (requestedJob && job && operated) recordControlEnded(job);
     router.push("/");
   }, [requestedJob, job, router]);
-  return <main className="shell operator-page"><SiteHeader onOverview={() => {if (exitRef.current) void exitRef.current(); else router.push("/");}} />
+  return <main className="shell operator-page"><SiteHeader roverJobId={requestedJob} onOverview={() => {if (exitRef.current) void exitRef.current(); else router.push("/");}} />
     <section className="operator-intro"><span className="eyebrow">{requestedJob ? t("STEP 2 · ROBOT CONTROL", "STEP 2 · ロボット操作") : t("FREE DRIVE", "自由に操作")}</span><h1>{job ? `Job #${job.jobId}` : t("Enjoy the drive.", "気軽に、自由に操作。")}</h1><p>{requestedJob ? t("Use all directions, the gripper and camera. Tap Forward once to complete the Job.", "全方向・アーム・カメラを操作できます。前ボタンを一瞬押すだけでJob完了です。") : t("Connect, choose a speed, and hold a direction. Release to stop.", "接続し、速度を選んで方向ボタンを押してください。離すと停止します。")}</p></section>
     {!requestedJob ? <><p className="free-drive-note">{t("No job needed. Connect and enjoy driving.", "仕事の作成は不要です。接続して自由に操作できます。")}</p><RoverControl key="free-drive" onFinished={finish} exitRef={exitRef} /></> : loading ? <div className="empty-job"><p role="status">{t("Loading your job…", "仕事を読み込んでいます…")}</p><Link className="primary-link" href="/">{t("Return to overview", "概要へ戻る")} →</Link></div> : job ? <>
       <RoverJobControls key={`session:${wallet}:${job.createTransactionHash}`} job={job} exitRef={exitRef} onFinished={finish} />
