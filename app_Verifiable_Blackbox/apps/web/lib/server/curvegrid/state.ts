@@ -4,7 +4,7 @@ import {resolve} from "node:path";
 import {contracts, selection, settings} from "./config";
 import {fetchSnapshot, safeError, type Snapshot} from "./fetch";
 import {buildLedger, normalizeRawLog} from "@/lib/ledger/payment-ledger";
-import {withinCutoff, type RetrievalState} from "@/lib/ledger/types";
+import {withinCutoff, validateSelection, type RetrievalState} from "@/lib/ledger/types";
 
 export class LedgerState {
   snapshot: Snapshot | null = null;
@@ -19,14 +19,15 @@ export class LedgerState {
       const stored = JSON.parse(await readFile(this.path, "utf8")) as Snapshot;
       if (stored.version !== 1 || stored.source !== "multibaas" || stored.fingerprint !== this.config.fingerprint
         || !Number.isFinite(Date.parse(stored.fetchedAt)) || !Number.isSafeInteger(stored.range.chainHead)) throw Error("INVALID_SNAPSHOT");
-      const hashes = new Set(selection.jobs.flatMap(j => j.transactions.map(t => t.toLowerCase())));
+      const selected = stored.selection ?? selection;
+      const hashes = new Set(validateSelection(contracts,selected));
       const events = stored.events.map(e => {
         const parsed = normalizeRawLog(e.raw, e.timestamp);
-        if (!parsed || !hashes.has(parsed.txHash) || !withinCutoff(parsed.timestamp, selection)) throw Error("INVALID_SNAPSHOT");
+        if (!parsed || !hashes.has(parsed.txHash) || !withinCutoff(parsed.timestamp, selected)) throw Error("INVALID_SNAPSHOT");
         return {...parsed, canonical:e.canonical === true};
       });
       stored.payments = buildLedger(events, stored.receipts, contracts, stored.range.chainHead, this.config.confirmations)
-        .filter(p => selection.jobs.some(j => j.jobId === p.jobId));
+        .filter(p => selected.jobs.some(j => j.jobId === p.jobId));
       stored.events = events;
       this.snapshot = stored;
       this.state = "cached";
@@ -37,7 +38,7 @@ export class LedgerState {
     return {state:this.busy ? "loading" as const : this.state, error:this.error, configured:this.config.configured,
       missing:this.config.missing, source:this.snapshot ? "multibaas" as const : null,
       saved:Boolean(this.snapshot && !["live","empty"].includes(this.state)), fetchedAt:this.snapshot?.fetchedAt ?? null,
-      lastAttemptAt:this.lastAttemptAt, range:this.snapshot?.range ?? null, selection,
+      lastAttemptAt:this.lastAttemptAt, range:this.snapshot?.range ?? null, selection:this.snapshot?.selection ?? selection,
       contracts, confirmationsRequired:this.config.confirmations, payments,
       totalMinor:payments.reduce((n,p) => n + BigInt(p.amountMinor),0n).toString(),
       matchedMinor:payments.filter(p=>p.status === "matched").reduce((n,p)=>n+BigInt(p.amountMinor),0n).toString()};
