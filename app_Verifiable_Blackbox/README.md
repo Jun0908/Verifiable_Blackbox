@@ -95,3 +95,24 @@ node scripts/test-ledger-browser.mjs
 ```
 
 ブラウザ試験にはWindowsのMicrosoft Edgeを使用します。別のChromium実行ファイルを使う場合は`CHROMIUM_EXECUTABLE`を指定します。接続設定とsnapshotはGit対象外です。構成は [Architecture](docs/ARCHITECTURE.md)、依存関係は [Dependencies](docs/DEPENDENCIES.md) を参照してください。
+
+## StegaVAR video comparison and analysis
+
+```powershell
+npm run demo:stegavar
+```
+
+Open `http://127.0.0.1:3000/stegavar`. Choose a moving or stationary rover and a surfing, hiking or camping cover. Switch Cover / Stego / Difference, use Reveal to display the reconstructed video, and play or seek both views together. Reanalyze runs CPU motion measurement on the recovered frames; the result includes its execution time and input hashes.
+
+Set up Python 3.11 and pinned dependencies with [the StegaVAR service guide](services/stegavar/README.md). The launcher checks Python and data availability, starts the loopback service on port 4178, and connects to a matching running Web application or starts one on port 3000. `Ctrl+C` stops processes started by this launcher. `npm run demo:stegavar -- --check` verifies startup and exits. Video browsing and saved results are available without Python.
+
+Configuration template: [`.env.stegavar.example`](.env.stegavar.example). Copy the required settings into root `.env`. `STEGAVAR_URL` and `STEGAVAR_PORT` must identify the same local service; restart a running Web application after changing them. `STEGAVAR_DATA_ROOT` is shared by Web and Python. `STEGAVAR_PYTHON` can select the service interpreter. CPU threads default to 4; response timeout defaults to 20 seconds. HTTP timeout does not cancel processing; use the status button before retrying.
+
+Generate the two cases with the service guide, then publish only their verified display assets:
+
+```powershell
+services/stegavar/.venv/Scripts/python.exe services/stegavar/scripts/publish_data.py
+services/stegavar/.venv/Scripts/python.exe services/stegavar/scripts/publish_data.py --check
+```
+
+Public frames and Reveal are openly viewable. Motion measurement is reference information and does not authorize a payment. Source and model attribution: [StegaVAR sources](services/stegavar/SOURCES.md).

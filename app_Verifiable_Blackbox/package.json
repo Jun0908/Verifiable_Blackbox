@@ -33,7 +33,8 @@
     "validate": "node scripts/validate.mjs",
     "validate:phala": "node scripts/validate.mjs --phala",
     "demo:rover-phala": "node scripts/local-stack.mjs --phala --rover-mock",
-    "test:browser": "node scripts/test-browser.mjs"
+    "test:browser": "node scripts/test-browser.mjs",
+    "demo:stegavar": "node scripts/start-stegavar.mjs"
   },
   "devDependencies": {
     "playwright-core": "1.61.1"
