@@ -19,6 +19,8 @@ const rpc = `http://127.0.0.1:${rpcPort}`;
 const url = `http://127.0.0.1:${webPort}`;
 const children = new Set();
 const env = {...process.env, RUST_LOG:'error'};
+delete env.DEMO_GAS_FAUCET_PRIVATE_KEY;
+env.DEMO_GAS_FAUCET_ENABLED='false';
 const settings = resolve(root, '.env');
 if (existsSync(settings)) {
   const values = parseEnv(readFileSync(settings, 'utf8'));
@@ -76,7 +78,7 @@ try {
   const deployment=JSON.parse(readFileSync(resolve(root,'deployments/demo.web.json'),'utf8'));
   if(phala) {
     const phalaRoot=resolve(process.env.PHALA_PROJECT_ROOT||resolve(root,'../../PhalaNetwork'));
-    if(!existsSync(resolve(phalaRoot,'dist/index.js'))) throw Error('Build PHALA_PROJECT_ROOT first; see docs/PHALA.md');
+    if(!existsSync(resolve(phalaRoot,'dist/index.js'))) throw Error('Build PHALA_PROJECT_ROOT first; see docs/internal/PHALA.md');
     const verifier=launch(process.execPath,['dist/index.js'],{cwd:phalaRoot,env:{...env,PORT:String(phalaPort),RPC_URL:rpc,CHAIN_ID:'31337',ERC8183_ADDRESS:deployment.erc8183,EVIDENCE_HOOK_ADDRESS:deployment.evidenceHook,EVALUATOR_ADDRESS:deployment.evaluator,VERIFIER_MODE:'LOCAL_DEV',VERDICT_SIGNING_KEY:env.DEMO_TEE_PRIVATE_KEY}});
     await ready(verifier,async()=>{const r=await fetch(`${env.PHALA_VERIFIER_URL}/health`,{signal:AbortSignal.timeout(1000)});const h=await r.json();if(!h.ok||h.verifier.signerAddress.toLowerCase()!==deployment.mockTeeSigner.toLowerCase())throw Error('Phala signer mismatch');});
   }
@@ -89,7 +91,7 @@ try {
     else {
       const roverRoot=resolve(process.env.ROVER_PYTHON_ROOT||resolve(root,'../M5stack_RoverC/rover-python'));
       const python=process.env.ROVER_PYTHON||resolve(roverRoot,process.platform==='win32'?'.venv/Scripts/python.exe':'.venv/bin/python');
-      if(!existsSync(python)||!existsSync(resolve(roverRoot,'web_bridge_server.py')))throw Error('Python or Rover project missing. Set ROVER_PYTHON_ROOT and create its .venv; see docs/ROVER.md');
+      if(!existsSync(python)||!existsSync(resolve(roverRoot,'web_bridge_server.py')))throw Error('Python or Rover project missing. Set ROVER_PYTHON_ROOT and create its .venv; see docs/internal/ROVER.md');
       console.log('Hardware bridge: keep the robot in view. No ARM until Connect; an offline robot is reported by the UI.');
       bridge=launch(python,['web_bridge_server.py','--camera','--no-browser','--port',String(bridgePort)],{cwd:roverRoot,env:bridgeEnvironment(env)});
     }

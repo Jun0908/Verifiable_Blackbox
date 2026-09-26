@@ -234,6 +234,14 @@ footer strong.attested { color: var(--mint); }
 .job-history li { display:flex; justify-content:space-between; align-items:center; gap:.8rem; padding:.65rem 0; border-bottom:1px solid var(--line); font-size:.8rem; }
 .job-history button { flex-shrink:0; padding:.6rem .8rem; font-size:.8rem; }
 .control-details { color:var(--muted); font-size:.8rem; margin-top:.5rem; }
+.demo-gas { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:1rem; margin:0 0 1.5rem; }
+.demo-gas > div { flex:1; min-width:220px; }
+.demo-gas strong { display:block; margin-top:.5rem; font-size:1.4rem; }
+.demo-gas p { color:var(--muted); font-size:.85rem; line-height:1.6; }
+.demo-gas details { width:100%; min-width:0; }
+.demo-gas summary { cursor:pointer; color:var(--mint); font-size:.85rem; }
+.demo-gas code { display:block; overflow-wrap:anywhere; font-size:.8rem; }
+.demo-gas details button { display:block; margin-top:1rem; }
 .control-details summary { cursor:pointer; }
 .verification-review { margin-top:1rem; padding-top:1rem; border-top:1px solid var(--line); }
 .verification-review .proof-list { margin-top:.5rem; }

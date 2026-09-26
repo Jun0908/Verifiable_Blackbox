@@ -10,6 +10,10 @@
     "npm": ">=10.9.4 <11"
   },
   "scripts": {
+    "demo:sepolia": "node scripts/start-sepolia-web.mjs",
+    "gas:status": "node scripts/setup-demo-gas.mjs",
+    "gas:fund": "node scripts/setup-demo-gas.mjs --broadcast",
+    "test:gas": "node --import ./scripts/register-ts.mjs --experimental-transform-types scripts/test-gas-faucet.mjs",
     "contracts:build": "node scripts/foundry.mjs forge build",
     "contracts:test": "node scripts/foundry.mjs forge test",
     "test:evidence": "node --experimental-transform-types scripts/test-evidence.mjs",

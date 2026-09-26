@@ -4,6 +4,7 @@
 # Dependencies and local tools (including workspaces)
 node_modules/
 /.tools/
+/.playwright-mcp/
 /lib/
 /artifacts/
 /deployments/demo.web.json

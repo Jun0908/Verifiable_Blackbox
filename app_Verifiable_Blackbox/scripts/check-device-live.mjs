@@ -8,10 +8,10 @@ try {
  if(!process.env.VBB_SAVED_SIGNATURE)throw Error('SAVED_SIGNATURE_PATH_REQUIRED');
  const rpc=process.env.DEMO_RPC_URL || process.env.SEPOLIA_RPC_URL;
  if(!rpc)throw Error('SERVER_RPC_REQUIRED');
- const ens=await resolveEnsPublicKey({name:'vbb-rover-001.eth',rpcUrl:rpc});
+ const ens=await resolveEnsPublicKey({name:'m5stack-rover-001.eth',rpcUrl:rpc});
  const saved=JSON.parse(await readFile(process.env.VBB_SAVED_SIGNATURE,'utf8'));
  const record=verifyDeviceSignature(saved,ens.publicKey,{chainId:saved.chainId,core:saved.core,jobId:saved.jobId});
- const result=await verifyERC7913(createPublicClient({transport:http(rpc,{timeout:10000,retryCount:0})}),'0xfD789267D20c5124FA6718D15faa0EF47A5EF13f',record);
+ const result=await verifyERC7913(createPublicClient({transport:http(rpc,{timeout:10000,retryCount:0})}),'0x4E991Db4310835E3e2103E2417701a8CF296d2dd',record);
  const dir=new URL('../parts/device-signature/local/',import.meta.url);await mkdir(dir,{recursive:true});
  await writeFile(new URL('saved-live-report.html',dir),renderReport(record,result,{ens,signatureSource:'saved'}));
  console.log(JSON.stringify({ok:true,source:'saved signature, no fresh hardware response',ens:ens.name,block:ens.blockNumber,chain:record.chainId,job:record.jobId,p256:'verified',erc7913:result.status,payment:'not queried or changed'}));
