@@ -1,0 +1,18 @@
+diff --git a/src/hide_vid.py b/src/hide_vid.py
+index ee10735..58094c9 100644
+--- a/src/hide_vid.py
++++ b/src/hide_vid.py
+@@ -4,13 +4,6 @@ import torch
+ from torch import nn
+ import torch.nn.functional as F
+ 
+-from hide.LF_VSN.models.modules import common
+-from hide.LF_VSN.models.networks import define_G_v2
+-import hide.LF_VSN.options.options as option
+-from src.model.get_model import load_network
+-from hide.HiNet.model import Hinet
+-from hide.wengnet.wengnet import wengnet
+-from hide.hidden.hidden import HiDDeN
+ 
+ def hide_LF(img_batch, cover_batch, hidden_net, dwt, iwt):
+     img_batch = img_batch.unsqueeze(1)

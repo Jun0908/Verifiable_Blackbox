@@ -1,0 +1,10 @@
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.4.1+cpu
+numpy==1.26.4
+Pillow==12.3.0
+PyYAML==6.0.3
+gdown==6.3.0
+imageio-ffmpeg==0.6.0
+transformers==4.44.2
+huggingface-hub==0.36.2
+safetensors==0.7.0

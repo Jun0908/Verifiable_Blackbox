@@ -36,3 +36,9 @@ Versions are pinned in the lockfile; license identifiers below come from install
 | viem | 2.55.19 | MIT |
 
 The vendored ERC-8183 source keeps its MIT SPDX headers; snapshot identity and the missing historical upstream commit are documented in [SNAPSHOT.md](../packages/contracts/vendor/erc8183/SNAPSHOT.md). Solidity dependencies retain their complete upstream license files under ignored lib/. No project-wide license grant is added by these dependency notices.
+
+## StegaVAR Python service
+
+Python 3.11.9, CPU PyTorch 2.4.1+cpu, NumPy 1.26.4, Pillow 12.3.0 and Transformers 4.44.2 are pinned with transitive distribution hashes in [requirements.txt](../services/stegavar/requirements.txt). Source revisions, CPU compatibility patches and model file hashes are defined in [assets.lock.json](../services/stegavar/config/assets.lock.json).
+
+See [service setup](../services/stegavar/README.md) and [code, model and footage attribution](../services/stegavar/SOURCES.md). Downloaded source repositories and weights remain outside Git; upstream notices are retained by the asset setup command.

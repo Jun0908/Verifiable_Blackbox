@@ -1,0 +1,36 @@
+{
+  "sources": [
+    {
+      "name": "StegaVAR",
+      "url": "https://github.com/clxhsa/StegaVAR.git",
+      "revision": "ef9d7f56568f205d60f47b06e3154338d0fe6c5b",
+      "patch": "stegavar-imports.patch"
+    },
+    {
+      "name": "LF-VSN",
+      "url": "https://github.com/MC-E/LF-VSN.git",
+      "revision": "cc05d16665122bfcd11522c74e8e1253d0bd9d51",
+      "patch": "lf-vsn-compat.patch"
+    }
+  ],
+  "lfvsn": {
+    "url": "https://drive.google.com/uc?id=1aEMZaigkMd2NUNXnOu2r0oa5IuLPCtTh",
+    "filename": "LF-VSN_1video.pth",
+    "sha256": "97dbc2d7115fb8ab7c8a219fca60c34f1bac39d1921291d1efbc98cf1d31d504"
+  },
+  "xclip": {
+    "repo": "microsoft/xclip-base-patch32",
+    "revision": "a2e27a78a2b5d802e894b8a1ef14f3a8ce490963",
+    "files": {
+      "config.json": "13bb919d1ef16f3b80b03cdf5c575d688dfafd21d12566849cc557b00e058ce3",
+      "merges.txt": "f526393189112391ce6f9795d4695f704121ce452c3aad1f5335cc41337eba85",
+      "model.safetensors": "abf286e8cdd0612761c3e42d3a55eca998382dfa67a04a0f3fdcdfa4f150cdbb",
+      "preprocessor_config.json": "c14b2b5c8f26a754df62235ba79d1ca63cfdd9b3de76ee688e4a30ea1e5c6986",
+      "special_tokens_map.json": "c4864a9376a8401918425bed71fc14fc0e81f9b59ec45c1cf96cccb2df508eac",
+      "tokenizer.json": "a75dc79c6ec004a7e2d346c20e0af8d29aa2b251ea356964718aef8b8f052e80",
+      "tokenizer_config.json": "7e28810d55aafb02f6b216f05fa1208a4aac62abf794796288a70314eed5ddf3",
+      "vocab.json": "5047b556ce86ccaf6aa22b3ffccfc52d391ea4accdab9c2f2407da5b742d4363",
+      "README.md": "5b4c29da30c14c41dadc2320cedb68d7bc30147aa171c04ce8d3d7b8acf8da91"
+    }
+  }
+}

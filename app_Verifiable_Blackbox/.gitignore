@@ -41,6 +41,14 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
+# StegaVAR Python runtime, downloaded models and build inputs
+/services/stegavar/.venv/
+/services/stegavar/checkpoints/
+/services/stegavar/third_party/
+/services/stegavar/work/
+__pycache__/
+*.pyc
+
 # OS metadata
 .DS_Store
 Thumbs.db

@@ -1,0 +1,11 @@
+{
+  "version": "rover-motion-v1",
+  "roi": [0.35, 0.40, 0.70, 0.98],
+  "blur_radius": 1.2,
+  "reference_frames": 3,
+  "pixel_delta": 12,
+  "moving_area_percent": 3.0,
+  "still_area_percent": 1.0,
+  "minimum_active_frames": 3,
+  "note": "Fixed camera, rover/cargo region in the padded 384x216 frame. Compensate median brightness change. Demo thresholds, not a calibrated work-completion model."
+}

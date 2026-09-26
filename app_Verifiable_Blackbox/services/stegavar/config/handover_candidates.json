@@ -1,0 +1,11 @@
+[
+  ["HANDOVER_SUCCESS", "受け渡し完了", "A video of a person handing an object to a robot, and the robot successfully holding the object after the person lets go."],
+  ["HANDOVER_DROP", "受け渡し中に落下", "A video of a person handing an object to a robot, but the object falls down during the handover."],
+  ["HANDOVER_NO_RELEASE", "物を離さず受け渡し未完了", "A video of a person handing an object to a robot, but the person keeps holding the object without letting go."],
+  ["HANDOVER_NO_GRASP", "掴めず受け渡し未完了", "A video of a person handing an object to a robot, but the robot fails to grasp the object and the person takes it back."],
+  ["HANDOVER_IDLE", "受け渡しを行っていない", "A video of a person and a robot staying still without handing over an object."],
+  ["HANDOVER_RETRIEVE", "床の物を拾い上げる", "A video of a person bending down and picking up an object from the floor next to a robot."],
+  ["SURFING", "サーフィン", "A video of a person surfing and riding an ocean wave."],
+  ["HIKING", "山登り", "A video of a person hiking up a mountain with a backpack."],
+  ["CAMPING", "キャンプ", "A video of a person roasting marshmallows over a campfire."]
+]

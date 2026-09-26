@@ -27,7 +27,8 @@ Verifiable Blackboxは、ロボットの仕事に関する記録を検証し、E
 | Device署名 | 停止中のM5によるJob識別情報のP-256署名、独立ERC-7913検証、CLI／レポート |
 | ENS | 公開鍵レコードの読取と署名照合、領収書への登録情報表示 |
 | 支払台帳・月次集計 | `/ledger`でMultiBaasの支払実績、根拠照合、月次サンプル集計、CSV出力を扱う |
-| 外部デモ | World／StegaVARは独立したアプリケーションとして扱う |
+| StegaVAR | `/stegavar`へ映像比較・復元映像の表示・再解析を統合する。Python処理は別サービスとする。詳細は第10節 |
+| 外部デモ | Worldによる認証・開示は独立したアプリケーションとして扱う |
 
 PhalaはDemoEvidenceのデータとChain上のJobとの整合性を検証する。支払いには利用者の署名付き承認を必要とする。実移動・荷物運搬・映像の意味の自動判定は対象外とする。
 
@@ -254,7 +255,7 @@ flowchart LR
 ### データ取得と照合
 
 - 対象のChain・Core・Hook・Evaluator・Tokenと、Jobごとの関連Transactionを設定する。履歴の契約構成は、現在の決済設定と区別して管理する。
-- 初期範囲は選択した最大10 Job・関連40取引。MultiBaasのtransaction receipt・block APIから取得し、取得対象と時刻を表示する。全履歴の取得とは表示しない。
+- 初期範囲は選択した最大10 Job・関連40取引。MultiBaasのtransaction receipt・block APIから取得する。取得対象・取得時刻・ブロック範囲はAPI応答とsnapshotで保持し、画面では支払実績と照合状態を表示する。
 - このDemoの対象は`apps/web/lib/ledger/selection.json`に指定したJob 1・3取引。日本時間2026年9月26日を含み、9月27日00:00以降の取引を拒否する。対象を自動追加しない。
 - 支払額は`PaymentReleased.amount`を使い、同じ成功取引のToken `Transfer`と照合する。入金・mint・手数料のTransferは支払額へ加算しない。
 - `JobCreated`、`EvidenceCommitted`、`DemoWorkReceiptIssued`を結び付け、Job・受取先・Evidence hash・イベント発行元・発注から支払いの順序・正規ブロック・確認数を検査する。確認数の初期値は12とする。
@@ -264,7 +265,7 @@ flowchart LR
 
 ### 保存・集計・CSV
 
-実取得結果はServer側にsnapshotとして保存する。再起動後や取得失敗時には、保存時刻と「保存済み取得結果」を表示する。契約設定・取得対象・MultiBaas接続先が異なるsnapshotは利用しない。更新時は同時実行を抑制し、一時ファイルからのrenameで保存する。
+実取得結果はServer側にsnapshotとして保存する。再起動後や取得失敗時には、保存済み結果であることと手動更新の案内を表示する。保存時刻はsnapshotで保持する。契約設定・取得対象・MultiBaas接続先が異なるsnapshotは利用しない。更新時は同時実行を抑制し、一時ファイルからのrenameで保存する。
 
 取得状態は「未設定」「取得中」「取得成功」「対象0件」「取得失敗」「保存済み結果表示」を区別する。失敗時にサンプルへ自動切替して成功表示しない。
 
@@ -273,7 +274,7 @@ flowchart LR
 CSVは集計用と明細用を用意し、対象月・通貨・件数・金額を画面と一致させる。サンプルであることをファイル名と各行の`source=sample`に含める。引用符・改行をescapeし、数式として解釈される文字列を処理する。
 
 - 集計CSV: `source, period, counterpartyId, counterpartyName, asset, decimals, usageCount, amountMinor, amountDisplay`
-- 明細CSV: `source, period, usageId, occurredAt, counterpartyId, description, asset, decimals, amountMinor, amountDisplay, evidenceRef`
+- 明細CSV: `source, period, usageId, occurredAt, counterpartyId, counterpartyName, description, asset, decimals, amountMinor, amountDisplay, evidenceRef`
 
 CSVは経理へ渡す補助明細とし、出力だけで記帳完了とは扱わない。
 
@@ -303,6 +304,155 @@ apps/web/
 
 台帳は読取と集計を担当する。月次一括送金、新しい精算Contract、仕訳の自動確定は対象外とする。取得障害がJob作成・Rover操作・Phala検証・決済を妨げない構成にする。
 
-## 10. 実装計画
+## 10. StegaVAR
 
-[TASKS.md](TASKS.md)に、開発環境から画面・Contract・Phala・実機接続・台帳統合までのタスクと完了条件を定義する。
+### 目的
+
+Roverの映像をカバー映像へ埋め込み、復元映像と解析結果を確認する。`/stegavar`に映像比較・再生・解析をまとめ、共通メニューと日英切替から利用できるようにする。
+
+### 機能
+
+- Roverが動いているケースと停止しているケースを選択する。
+- カバー映像、埋込み後の映像、差分を切り替える。
+- 復元映像を表示し、再生・停止・シークで比較する。
+- 保存済みの解析結果を表示する。
+- 復元映像をPythonサービスで再解析し、結果を更新する。
+- 使用したデータ、解析方法、ハッシュ、出典を確認する。
+
+Revealは事前に復元した映像を表示する操作とする。再解析は復元済みのフレームを入力に実行する。
+
+録画直後の自動埋込み・復元、World認証による開示、映像解析を条件とした自動決済は、別途設計する。
+
+### 構成
+
+```text
+app_Verifiable_Blackbox/
+├─ apps/web/
+│  ├─ app/
+│  │  ├─ stegavar/page.tsx
+│  │  └─ api/stegavar/
+│  │     ├─ health/route.ts
+│  │     └─ analyze/route.ts
+│  ├─ components/stegavar/
+│  ├─ lib/stegavar/
+│  └─ public/stegavar/
+│     └─ 公開用の映像データ・manifest・保存済み解析結果
+├─ services/stegavar/
+│  ├─ scripts/
+│  ├─ config/
+│  ├─ checkpoints/
+│  ├─ third_party/
+│  ├─ requirements.txt
+│  └─ .venv/
+└─ scripts/
+   └─ StegaVARを含む起動処理
+```
+
+Python環境・モデル・生成物は用途ごとに管理する。`.venv`と実行ログはGit管理から除外する。モデルの取得方法、バージョン、ハッシュを固定する。
+
+必要な公開用ケースだけを配置し、中間生成物とアーカイブは含めない。PythonとWebは同じmanifest・復元フレームを参照し、重複コピーを避ける。
+
+```mermaid
+flowchart TD
+    User[利用者] --> Page[StegaVAR画面]
+    Assets[公開用映像・manifest・保存済み結果] --> Page
+    Page --> API[Next.js API]
+    API --> Python[Python解析サービス]
+    Frames[復元フレーム] --> Python
+    Python --> Result[解析結果・入力ハッシュ]
+    Result --> API
+    API --> Page
+    Builder[Python映像生成処理] --> Assets
+    Builder --> Frames
+```
+
+### 役割分担
+
+| 構成 | 責務 |
+|---|---|
+| StegaVAR画面 | ケース選択、映像比較、再生、解析結果表示 |
+| Next.js API | 入力検証、Pythonへの接続、タイムアウト、エラーの整形 |
+| Python解析サービス | 復元フレームの検証、動きの計測、映像分類 |
+| Python映像生成処理 | 埋込み、復元、表示用データとmanifestの生成 |
+
+ブラウザは同一オリジンのNext.js APIを呼び出す。Pythonの接続先はサーバー側の環境変数で管理する。
+
+ローカルではPythonをloopbackにバインドする。別ホストへ配置する場合は、接続認証と通信経路を追加設計する。
+
+### API
+
+#### GET /api/stegavar/health
+
+Pythonの稼働状態、解析中かどうか、モデルのロード状態を返す。Pythonへ接続できない場合も映像画面は利用できる。
+
+#### POST /api/stegavar/analyze
+
+入力は以下とする。
+
+- `case`：解析対象のケースID
+- `scene`：カバー映像のID
+
+IDは許可された一覧と照合する。任意のファイルパスやURLは受け付けない。
+
+解析結果は以下を含む共通形式へ整形する。
+
+- ケースID・シーンID
+- 解析方式とそのバージョン
+- 実行ID・解析日時・処理時間
+- 入力映像と復元フレームのハッシュ
+- 解析結果
+- 今回実行した解析であることを示す情報
+
+同時解析は1件に制限する。解析中の追加要求は409、未起動・接続不可は503、待機時間超過は504として画面に伝える。
+
+待機上限は設定可能にし、初期値は20秒とする。HTTPの待機終了とPython処理の終了は区別する。
+
+### 映像・解析データ
+
+manifestにはケース、シーン、フレーム数、fps、表示データの参照先、解析方式、ハッシュを保持する。
+
+公開用データは以下を揃える。
+
+- カバー映像
+- 埋込み後の映像
+- 差分表示用データ
+- 復元フレーム
+- manifest
+- 保存済み解析結果
+- 出典・ライセンス情報
+
+解析には指定された復元フレームを使用する。サムネイルや確認用MP4を解析入力へ置き換えない。
+
+保存済み結果と今回の解析結果は明確に区別する。ケース切替後に到着した応答は、別ケースの表示へ反映しない。応答のケースIDと入力ハッシュをmanifestと照合する。
+
+### CPUでの処理
+
+映像の埋込み・復元とX-CLIPの分類はCPUで実行する。PyTorchのスレッド数は4を初期設定とする。
+
+Roverの動きは復元フレームの差分から計測する。動きの計測とX-CLIPによる分類は、画面上でも区別する。
+
+モデルは必要になった時点でロードし、解析サービス内で再利用する。GPU対応は、録画後の処理時間や処理量を測定してから検討する。
+
+### 障害時の動作
+
+Pythonが未起動、解析中、タイムアウト、解析失敗の場合は、理由を表示し、映像再生と保存済み結果の閲覧を継続する。
+
+失敗した要求を自動で繰り返さない。利用者が状態を確認して再試行できるようにする。
+
+### アプリとの関係
+
+共通ヘッダー、日英切替、Wallet Providerを利用する。StegaVARの閲覧や再解析にWallet署名は要求しない。
+
+解析結果は映像の参考情報として扱う。Roverの動きの検出を、仕事の完了や支払いの承認へ変換しない。
+
+DemoEvidence、Phalaの判定、Escrowの支払い条件は維持する。映像ハッシュはStegaVAR用として管理し、承認文書のハッシュを格納する現在の`imageHash`へ流用しない。
+
+### 映像の公開範囲
+
+publicへ配置した映像と復元フレームは公開データとして扱う。埋込みやRevealボタンによってアクセス制限が成立するとは扱わない。
+
+World認証による開示を追加する場合は、保護対象の映像をpublicから分離し、認証・権限・有効期限を確認して配信する。
+
+## 11. 実装計画
+
+[TASKS.md](TASKS.md)に、開発環境から画面・Contract・Phala・実機接続・台帳統合・StegaVAR統合までのタスクと完了条件を定義する。

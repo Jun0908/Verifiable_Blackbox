@@ -1,0 +1,23 @@
+{
+  "surf": {
+    "title": "波に乗ってます。", "short": "サーフィン", "tag": "SURF BREAK", "emoji": "🏄",
+    "file": "cover-surf.mp4", "start": 3,
+    "source": "https://www.pexels.com/video/a-surfer-riding-the-waves-of-the-sea-2873620/",
+    "download": "https://videos.pexels.com/video-files/2873620/2873620-uhd_3840_2160_25fps.mp4",
+    "creator": "Evgenia Kirpichnikova"
+  },
+  "hike": {
+    "title": "山で充電中です。", "short": "山登り", "tag": "MOUNTAIN MODE", "emoji": "🥾",
+    "file": "cover-hike.mp4", "start": 2,
+    "source": "https://www.pexels.com/video/a-man-carrying-backpack-while-hiking-on-mountains-9130066/",
+    "download": "https://videos.pexels.com/video-files/9130066/9130066-uhd_3840_2160_30fps.mp4",
+    "creator": "Dario Fernandez Ruz"
+  },
+  "camp": {
+    "title": "マシュマロ休憩です。", "short": "キャンプ", "tag": "CAMPFIRE CLUB", "emoji": "🏕️",
+    "file": "cover-camp.mp4", "start": 2,
+    "source": "https://www.pexels.com/video/roasting-a-marshmallow-in-the-campfire-6922819/",
+    "download": "https://videos.pexels.com/video-files/6922819/6922819-uhd_3840_2160_25fps.mp4",
+    "creator": "Taryn Elliott"
+  }
+}

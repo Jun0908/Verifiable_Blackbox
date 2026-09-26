@@ -1,0 +1,32 @@
+[
+  {
+    "scene": "surf",
+    "url": "https://www.pexels.com/video/a-surfer-riding-the-waves-of-the-sea-2873620/",
+    "download_url": "https://videos.pexels.com/video-files/2873620/2873620-uhd_3840_2160_25fps.mp4",
+    "creator": "Evgenia Kirpichnikova",
+    "license": "https://www.pexels.com/license/",
+    "file": "data\\samples\\cover-surf.mp4",
+    "bytes": 69182017,
+    "sha256": "faceaa815e4c3786bce39670ec39d186738e6564810bd00a035b18d11c186e17"
+  },
+  {
+    "scene": "hike",
+    "url": "https://www.pexels.com/video/a-man-carrying-backpack-while-hiking-on-mountains-9130066/",
+    "download_url": "https://videos.pexels.com/video-files/9130066/9130066-uhd_3840_2160_30fps.mp4",
+    "creator": "Dario Fernandez Ruz",
+    "license": "https://www.pexels.com/license/",
+    "file": "data\\samples\\cover-hike.mp4",
+    "bytes": 48959943,
+    "sha256": "fb1b94ebcd3ee2482929d9f6d436731894e84eaa0bd305b5d178053677e32583"
+  },
+  {
+    "scene": "camp",
+    "url": "https://www.pexels.com/video/roasting-a-marshmallow-in-the-campfire-6922819/",
+    "download_url": "https://videos.pexels.com/video-files/6922819/6922819-uhd_3840_2160_25fps.mp4",
+    "creator": "Taryn Elliott",
+    "license": "https://www.pexels.com/license/",
+    "file": "data\\samples\\cover-camp.mp4",
+    "bytes": 41014526,
+    "sha256": "56a79acafcfbf7a5347c8d619cba901fcf87f8bc307a15d781898e5fceea7313"
+  }
+]

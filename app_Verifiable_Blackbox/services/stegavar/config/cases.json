@@ -1,0 +1,35 @@
+{
+  "rover-moving": {
+    "title_ja": "成功例：荷物を運搬",
+    "title_en": "Success: carrying cargo",
+    "note_ja": "実機録画の14.5〜18.5秒。Roverが荷物を載せて移動する成功場面です。",
+    "note_en": "Seconds 14.5–18.5 of the rover recording, showing the rover moving while carrying cargo.",
+    "file": "rover-20260922-205958-48d0322a.webm",
+    "start": 14.5,
+    "frames": 40,
+    "profile": "rover_motion_v1",
+    "source": "User-provided rover recording: rover-20260922-205958-48d0322a.webm",
+    "source_sha256": "fe73fc4510a627a407121cfd6316cb933caff6999bb7525c08c5fb871f1433a2",
+    "annotation": {
+      "kind": "manually_selected_demo_case",
+      "outcome": "successful cargo transport",
+      "expected_motion": "ROVER_MOVING"
+    }
+  },
+  "rover-still": {
+    "title_ja": "実機：静止",
+    "title_en": "Rover: still",
+    "note_ja": "実機録画の1〜5秒。ほぼ同じ姿勢の比較素材です。",
+    "note_en": "Seconds 1–5 of the rover recording, showing a nearly unchanged pose.",
+    "file": "rover-20260922-210102-416fb023.webm",
+    "start": 1,
+    "frames": 40,
+    "profile": "rover_motion_v1",
+    "source": "User-provided rover recording: rover-20260922-210102-416fb023.webm",
+    "source_sha256": "9344283e8c43a9a9a16f7d422cfc7823093430483be6aaf02d73dd6eae17bc1d",
+    "annotation": {
+      "kind": "manually_selected_demo_case",
+      "expected_motion": "ROVER_STILL"
+    }
+  }
+}
