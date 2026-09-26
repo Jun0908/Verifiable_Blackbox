@@ -52,7 +52,7 @@ export function RoverSessionPanel({job}: {job: ActiveRobotJob}) {
     if (next && (next.context.jobId !== job.jobId || next.context.chainId !== job.chainId
       || next.context.core.toLowerCase() !== job.core.toLowerCase()
       || next.context.client.toLowerCase() !== job.wallet.toLowerCase()
-      || next.context.conditionsHash !== roverHash({options: next.context.options, camera: next.context.camera, policyHash: next.context.policyHash}))) throw Error("SESSION_CONTEXT_CHANGED");
+      || next.context.conditionsHash !== roverHash({options: next.context.options, camera: next.context.camera, cameraUrl: next.context.cameraUrl, policyHash: next.context.policyHash}))) throw Error("SESSION_CONTEXT_CHANGED");
     if (mounted.current) {setRecord(next); if (next) setOptions(next.context.options);}
   }
   async function act(action: "prepare" | "authorize" | "status") {
@@ -89,7 +89,36 @@ export function RoverSessionPanel({job}: {job: ActiveRobotJob}) {
     setRecord(null); setOptions(defaults()); setSettings(false); setError(undefined);
     accessRef.current = undefined; signatureRef.current = undefined;
   }
+  async function runAction(action: "start" | "stop") {
+    if (!record?.authorizationSignature || (inFlight.current && action !== "stop")) return;
+    if (action === "start") inFlight.current = true;
+    setBusy(true); setError(undefined);
+    try {
+      accept(await post({action, jobId: job.jobId, sessionId: record.context.sessionId,
+        signature: record.authorizationSignature}, "/api/demo/rover/session/start"));
+    } catch (cause) {if (mounted.current) setError(cause instanceof Error ? cause.message : "RUN_REQUEST_FAILED");}
+    finally {if (action === "start") inFlight.current = false; if (mounted.current) setBusy(false);}
+  }
+  useEffect(() => {
+    if (!record?.authorizationSignature || !["STARTING", "RECORDING", "OPERATING", "STOPPING"].includes(record.phase)) return;
+    let cancelled = false, polling = false;
+    const refresh = async () => {
+      if (polling) return;
+      polling = true;
+      try {
+        const next = await post({jobId: job.jobId, sessionId: record.context.sessionId, signature: record.authorizationSignature}, "/api/demo/rover/session/status");
+        if (!cancelled) accept(next);
+      } catch {if (!cancelled) setError("RUN_STATUS_UNAVAILABLE");}
+      finally {polling = false;}
+    };
+    void refresh();
+    const timer = setInterval(() => void refresh(), 1000);
+    return () => {cancelled = true; clearInterval(timer);};
+    // The component is keyed by wallet and Job creation transaction.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [record?.context.sessionId, record?.phase, record?.authorizationSignature, job.jobId]);
   const authorized = record?.phase === "AUTHORIZED";
+  const running = Boolean(record && ["STARTING", "RECORDING", "OPERATING", "STOPPING"].includes(record.phase));
   return <section className="panel rover-session-panel" aria-label={t("Rover session", "Rover実行セッション")}>
     <div className="rover-session-heading"><h2>{t("Plan this run", "今回の実行条件")}</h2>
       <button type="button" className="rover-session-settings" aria-label={t("Settings", "設定")} disabled={!allowed || locked}
@@ -121,11 +150,19 @@ export function RoverSessionPanel({job}: {job: ActiveRobotJob}) {
         <button disabled={busy} onClick={reset}>{t("Change conditions", "条件を変更")}</button>
         <button disabled={busy} onClick={() => void act("status")}>{t("Check saved state", "保存状態を確認")}</button></div>}
       {authorized && <p role="status">{t("Authorization saved. Driving has not started.", "承認を保存しました。走行は開始していません。")}</p>}
-      {["EXPIRED", "SUPERSEDED"].includes(record.phase) && <button disabled={busy} onClick={reset}>{t("Prepare a new session", "新しいセッションを準備")}</button>}
+      {(authorized || record.phase === "STARTING") && <button disabled={busy} onClick={() => void runAction("start")}>{record.phase === "STARTING"
+        ? t("Check start request", "開始要求を確認") : record.context.options.operation === "FORWARD" ? t("Start forward run", "前進デモを開始") : t("Start stationary run", "静止デモを開始")}</button>}
+      {running && <><p role="status">{t("Run in progress", "実行中")}: {record.phase}</p><button onClick={() => void runAction("stop")}>{t("Emergency stop", "緊急停止")}</button></>}
+      {record.phase === "CAPTURED" && <p role="status">{t("Operation records saved. Stop confirmed.", "操作記録を保存しました。停止を確認しました。")}</p>}
+      {record.phase === "ERROR" && <p role="alert">{t("The run stopped. Check the robot before starting another session.", "実行を停止しました。次のセッションを始める前に機体を確認してください。")}</p>}
+      {["EXPIRED", "SUPERSEDED", "ERROR"].includes(record.phase) && <button disabled={busy} onClick={reset}>{t("Prepare a new session", "新しいセッションを準備")}</button>}
       <details><summary>{t("Execution details", "実行詳細")}</summary><dl>
         <dt>{t("Session", "セッション")}</dt><dd>{record.context.sessionId}</dd><dt>{t("Status", "状態")}</dt><dd>{record.phase}</dd>
         <dt>{t("Video recognition", "動画認識")}</dt><dd>{record.context.options.judgmentMode === "SKIP_VIDEO" ? t("Skipped", "スキップ") : t("Enabled", "使用")}</dd>
         <dt>{t("Authorization expires", "承認期限")}</dt><dd>{new Date(record.context.expiresAt * 1000).toLocaleString()}</dd>
+        {record.run && <><dt>{t("Commands recorded", "指令の記録数")}</dt><dd>{record.run.commands.length}</dd>
+          <dt>{t("Recording", "録画")}</dt><dd>{record.run.recording.state} · {record.run.recording.frames.length} frames</dd></>}
+        {record.error && <><dt>{t("Run result", "実行結果")}</dt><dd>{record.error}</dd></>}
       </dl></details>
     </>}
     {busy && <p role="status">{t("Confirm the request in your wallet…", "ウォレットで内容を確認してください…")}</p>}

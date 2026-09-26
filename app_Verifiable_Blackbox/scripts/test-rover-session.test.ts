@@ -24,7 +24,7 @@ async function fixture(t: TestContext) {
   const job = {id: 1n, client: owner.address, provider: address(2), budget: 100000000n, expiredAt: BigInt(now + 3600), evaluator: address(3), hook: address(4)};
   const service = new RoverSessions({store, evaluator: address(3), token: address(5), now: () => now,
     fundedJob: async id => {if (id !== "1") throw Error("JOB_NOT_FOUND"); return job;},
-    videoPolicy: async () => {videoCalls++; return {version: "test-motion", roi: [0, 0, 1, 1]};}});
+    videoPolicy: async () => {videoCalls++; return {version: "test-motion", roi: [0, 0, 1, 1], cameraUrl: "http://camera:81/stream"};}});
   const access = (options = skip): RoverAccess => ({action: "prepare", ...scope, jobId: "1", requestId: randomUUID(), issuedAt: now, options});
   const prepare = async (input = access()) => service.prepare(input, await owner.signMessage({message: roverAccessMessage(input)}));
   return {root, scope, store, job, service, access, prepare, videoCalls: () => videoCalls, advance: (seconds: number) => {now += seconds;}};

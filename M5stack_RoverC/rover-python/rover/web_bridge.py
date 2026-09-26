@@ -31,6 +31,43 @@ class RoverWebBridge:
         self.last_uptime = -1
         self.needs_release = False
         self.activation_epoch = 0
+        self.job_owner = None
+        self.send_events = []
+        self.stop_result = None
+
+    def claim_job(self, owner):
+        with self.lock:
+            if self.job_owner is not None or self.state not in {"idle", "error"}:
+                raise BridgeError("ROVER_BUSY")
+            self.job_owner = owner
+            self.send_events = []
+            self.stop_result = None
+
+    def release_job(self, owner):
+        with self.lock:
+            if self.job_owner == owner:
+                if self.controller is not None:
+                    raise BridgeError("STOP_REQUIRED")
+                self.job_owner = None
+
+    def _owner(self, owner):
+        if self.job_owner is not None and self.job_owner != owner:
+            raise BridgeError("ROVER_RESERVED")
+
+    def _send(self, command):
+        event = {"sessionId": self.job_owner, "sequence": self.sequence, "sentAt": time.time(),
+                 "x": command.x, "y": command.y, "z": command.z, "speed": command.speed_limit,
+                 "deadman": command.deadman}
+        try:
+            sequence = self.controller.send(command)
+            event.update({"result": "SENT", "deviceSequence": sequence})
+            return sequence
+        except Exception:
+            event["result"] = "FAILED"
+            raise
+        finally:
+            if self.job_owner is not None and len(self.send_events) < 2000:
+                self.send_events.append(event)
 
     def snapshot(self):
         with self.lock:
@@ -42,10 +79,12 @@ class RoverWebBridge:
                     "motors": list(telemetry.motors) if telemetry else None,
                     "rssi": telemetry.rssi if telemetry else None,
                     "gripperAngle": getattr(telemetry, "gripper_angle", None),
-                    "physicalMovementVerified": False, "paymentEnabled": False}
+                    "physicalMovementVerified": False, "paymentEnabled": False,
+                    "jobOccupied": self.job_owner is not None}
 
-    def activate(self, *_unused):
+    def activate(self, *_unused, owner=None):
         with self.lock:
+            self._owner(owner)
             if self.state in {"connecting","ready","commanding","stopping"}:
                 raise BridgeError("A control session is already active. Stop it before reconnecting.")
             self.state = "connecting"
@@ -89,7 +128,8 @@ class RoverWebBridge:
                     self.message = str(exc) if isinstance(exc, BridgeError) else "Cannot connect. Check the robot power and Wi-Fi."
             raise BridgeError(self.message) from None
 
-    def _validate(self, session, sequence):
+    def _validate(self, session, sequence, owner=None):
+        self._owner(owner)
         if session != self.session or self.state not in {"ready","commanding"}:
             raise BridgeError("Control session ended. Reconnect to continue.")
         if type(sequence) is not int or not 0 <= sequence <= 2**53 - 1:
@@ -104,12 +144,13 @@ class RoverWebBridge:
             else:
                 raise BridgeError("Control signal expired. Wait for the robot to stop.")
 
-    def drive(self, session, sequence, direction, speed):
+    def drive(self, session, sequence, direction, speed, *, owner=None):
         with self.lock:
-            self._validate(session, sequence)
+            self._validate(session, sequence, owner)
             if self.needs_release:
                 raise BridgeError("Controls paused. Release the direction and try again.")
-            if not isinstance(direction, str) or direction not in DIRECTIONS or type(speed) is not int or speed not in {35,60,85}:
+            valid_speed = type(speed) is int and (1 <= speed <= 50 if owner is not None else speed in {35,60,85})
+            if not isinstance(direction, str) or direction not in DIRECTIONS or not valid_speed:
                 raise BridgeError("Invalid direction or speed.")
             if not self.last_telemetry or self.clock() - self.telemetry_at > 0.8:
                 raise BridgeError("Waiting for robot telemetry. No movement command sent.")
@@ -156,7 +197,7 @@ class RoverWebBridge:
             self.gripper_next_step = self.clock() + 0.12
             try:
                 # Send immediately so a short click is not lost between control ticks.
-                self.gripper_sequence = self.controller.send(self.command)
+                self.gripper_sequence = self._send(self.command)
             except Exception:
                 self._stop_locked(failed=True)
                 raise BridgeError("Gripper command could not be sent.") from None
@@ -173,7 +214,7 @@ class RoverWebBridge:
             self.deadline = self.clock() + self.IDLE_SECONDS
             # Send zero immediately; old drive requests cannot override its sequence.
             try:
-                self.controller.send(self.command)
+                self._send(self.command)
                 self.state, self.message = "ready", "Controls released. No payment is triggered."
             except Exception:
                 self._stop_locked(failed=True)
@@ -231,7 +272,7 @@ class RoverWebBridge:
                         self._pause_locked()
                 if not self.controller.armed or self.clock() - self.telemetry_at > 0.8:
                     raise BridgeError("Robot telemetry is unavailable.")
-                self.controller.send(self.command)
+                self._send(self.command)
             except Exception:
                 self._stop_locked(failed=True)
 
@@ -243,18 +284,21 @@ class RoverWebBridge:
         self.needs_release = True
         self.deadline = self.clock() + self.IDLE_SECONDS
         try:
-            self.controller.send(self.command)
+            self._send(self.command)
             self.state, self.message = "ready", "Controls paused. Release the direction and try again."
         except Exception:
             self._stop_locked(failed=True)
 
     def _stop_locked(self, failed=False):
         self._clear_gripper()
+        self.stop_result = {"requestedAt": time.time(), "confirmed": False}
         try:
             self.controller.emergency_stop()
             status = self.controller.api.status()
+            self.stop_result["response"] = {key: status.get(key) for key in ("armed", "motors", "i2c")}
             if status.get("armed") is not False or status.get("motors") is not False or status.get("i2c") is not True:
                 raise BridgeError("Stop could not be confirmed.")
+            self.stop_result.update({"confirmed": True, "confirmedAt": time.time()})
         except Exception: failed = True
         finally:
             try: self.controller.close(send_stop=False)

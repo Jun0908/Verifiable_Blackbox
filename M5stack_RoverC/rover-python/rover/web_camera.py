@@ -12,6 +12,18 @@ class WebCamera:
         self.lock = threading.RLock()
         self.enabled = True
         self.url = ""
+        self.job_owner = None
+
+    def claim_job(self, owner):
+        with self.lock:
+            if self.job_owner is not None:
+                raise ValueError("CAMERA_BUSY")
+            self.job_owner = owner
+
+    def release_job(self, owner):
+        with self.lock:
+            if self.job_owner == owner:
+                self.job_owner = None
 
     def start(self):
         settings = load_rover_settings()
@@ -24,6 +36,8 @@ class WebCamera:
             raise ValueError("Invalid camera address")
         normalized = stream_url(url)
         with self.lock:
+            if self.job_owner is not None:
+                raise ValueError("CAMERA_RESERVED")
             # Read the current settings so unrelated GUI changes are preserved.
             settings = load_rover_settings()
             settings.camera_url = normalized
@@ -36,6 +50,8 @@ class WebCamera:
         if not isinstance(enabled, bool):
             raise ValueError("Invalid camera state")
         with self.lock:
+            if self.job_owner is not None:
+                raise ValueError("CAMERA_RESERVED")
             settings = load_rover_settings()
             settings.camera_enabled = enabled
             save_rover_settings(settings)

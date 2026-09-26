@@ -11,6 +11,7 @@ import secrets
 import signal
 import threading
 import webbrowser
+from urllib.parse import parse_qs, urlsplit
 from rover.config import app_settings, load_rover_settings
 from rover.control import RoverController
 from rover.web_bridge import BridgeError, RoverWebBridge
@@ -20,7 +21,7 @@ RECORDINGS_ROOT = WEB_ROOT.parent / "recordings"
 MAX_RECORDING_BYTES = 128 * 1024 * 1024
 
 
-def create_handler(bridge, token, *, serve_web=False, port=8765, camera=None, recordings_root=RECORDINGS_ROOT):
+def create_handler(bridge, token, *, serve_web=False, port=8765, camera=None, recordings_root=RECORDINGS_ROOT, jobs=None):
     hosts = {f"localhost:{port}", f"127.0.0.1:{port}"}
     assets = {"/": ("index.html", "text/html; charset=utf-8"),
               "/app.js": ("app.js", "text/javascript; charset=utf-8"),
@@ -71,6 +72,12 @@ def create_handler(bridge, token, *, serve_web=False, port=8765, camera=None, re
                 return self.send_bytes(200, data, content_type)
             if not self.authorized():
                 return self.reply(403, {"error": "Forbidden"})
+            if jobs is not None and urlsplit(self.path).path == "/jobs/status":
+                try:
+                    session = parse_qs(urlsplit(self.path).query).get("sessionId", [None])[0]
+                    return self.reply(200, jobs.status(session))
+                except (ValueError, KeyError, OSError):
+                    return self.reply(409, {"error": "SESSION_UNAVAILABLE"})
             if camera is not None and self.path == "/camera":
                 return self.reply(200, camera.status())
             if camera is not None and self.path == "/camera/frame":
@@ -173,7 +180,11 @@ def create_handler(bridge, token, *, serve_web=False, port=8765, camera=None, re
                 body = json.loads(raw_body)
                 if not isinstance(body, dict):
                     raise BridgeError("Invalid request")
-                if self.path == "/camera" and camera is not None:
+                if self.path == "/jobs/start" and jobs is not None:
+                    return self.reply(202, jobs.start(body))
+                elif self.path == "/jobs/stop" and jobs is not None:
+                    result = jobs.stop(body.get("sessionId"))
+                elif self.path == "/camera" and camera is not None:
                     result = camera.configure(body.get("url"))
                 elif self.path == "/camera/power" and camera is not None:
                     result = camera.set_enabled(body.get("enabled"))
@@ -216,9 +227,11 @@ def main():
     if args.web or args.camera:
         from rover.web_camera import WebCamera
         camera = WebCamera()
+    from rover.job_runner import RoverJobRunner
+    jobs = RoverJobRunner(bridge, camera, Path(os.environ.get("ROVER_JOB_RECORDING_DIR", str(WEB_ROOT.parent / ".rover-sessions"))))
     try:
         server = ThreadingHTTPServer(("127.0.0.1", args.port),
-                                     create_handler(bridge, token, serve_web=args.web, port=args.port, camera=camera))
+                                     create_handler(bridge, token, serve_web=args.web, port=args.port, camera=camera, jobs=jobs))
     except OSError as exc:
         raise SystemExit(f"Cannot listen on port {args.port}. Close the other Rover web launcher first. ({exc})")
     if camera is not None:
@@ -233,6 +246,7 @@ def main():
     threading.Thread(target=control_loop, daemon=True).start()
 
     def stop(*_):
+        jobs.cancelled.set()
         done.set()
         bridge.shutdown()
         threading.Thread(target=server.shutdown, daemon=True).start()
@@ -246,6 +260,7 @@ def main():
     try:
         server.serve_forever()
     finally:
+        jobs.close()
         done.set()
         bridge.shutdown()
         server.server_close()

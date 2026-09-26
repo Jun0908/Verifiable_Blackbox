@@ -12,6 +12,7 @@ rover-python/config/*.json
 !rover-python/config/*.example.json
 rover-python/logs/
 rover-python/recordings/
+rover-python/.rover-sessions/
 camera-firmware/build*/
 camera-firmware/.tools/
 **/backup/

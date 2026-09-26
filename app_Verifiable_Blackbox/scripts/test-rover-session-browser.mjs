@@ -8,6 +8,7 @@ import {chromium} from 'playwright-core';
 
 const root=resolve(import.meta.dirname,'..'),web=resolve(root,'apps/web');
 const rpc='http://127.0.0.1:8557',base='http://127.0.0.1:3017';
+const bridgeBase='http://127.0.0.1:8769',bridgeToken='rover-session-public-test-token-only';
 const chain=defineChain({id:31337,name:'Rover session test',nativeCurrency:{name:'ETH',symbol:'ETH',decimals:18},rpcUrls:{default:{http:[rpc]}}});
 const owner=privateKeyToAccount('0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80');
 const provider=privateKeyToAccount(toHex(0xb0bn,{size:32}));
@@ -26,8 +27,11 @@ async function deploy(name,args=[]){const artifact=JSON.parse(await readFile(res
 async function contract(address,abi,functionName,args){return receipt(await wallet.writeContract({address,abi,functionName,args}));}
 
 try {
-  for(const url of [rpc,base]) {try {await fetch(url,{signal:AbortSignal.timeout(500)});throw Error('TEST_PORT_IN_USE');}catch(error){if(error.message==='TEST_PORT_IN_USE')throw error;}}
+  for(const url of [rpc,base,bridgeBase]) {try {await fetch(url,{signal:AbortSignal.timeout(500)});throw Error('TEST_PORT_IN_USE');}catch(error){if(error.message==='TEST_PORT_IN_USE')throw error;}}
   await mkdir(resolve(root,'tmp'),{recursive:true});temporary=await mkdtemp(resolve(root,'tmp/rover-browser-'));
+  launch(process.platform==='win32'?'py':'python3', [...(process.platform==='win32'?['-3.11']:[]),'-m','tests.serve_job_fixture','--port','8769',
+    '--directory',resolve(temporary,'recordings'),'--token',bridgeToken],{cwd:resolve(root,'../M5stack_RoverC/rover-python')});
+  await waitFor(async()=>assert.equal((await fetch(bridgeBase+'/status',{headers:{Authorization:`Bearer ${bridgeToken}`}})).status,200));
   launch(resolve(root,'.tools/foundry-v1.7.1/anvil'+(process.platform==='win32'?'.exe':'')),['--host','127.0.0.1','--port','8557','--chain-id','31337','--silent']);
   await waitFor(()=>client.getChainId());
   const token=await deploy('MockUSDC',[owner.address]);
@@ -47,7 +51,7 @@ try {
     MOCK_USDC_ADDRESS:token,ERC8183_ADDRESS:core,EVIDENCE_HOOK_ADDRESS:hook,EVALUATOR_ADDRESS:evaluator,
     DEMO_PROVIDER_ADDRESS:provider.address,
     DEMO_RELAYER_ADDRESS:owner.address,
-    DEMO_TEE_SIGNER_ADDRESS:tee.address,DEMO_VERIFIER_MODE:'MOCK_TEE',VBB_BRIDGE_URL:'http://127.0.0.1:65530'};
+    DEMO_TEE_SIGNER_ADDRESS:tee.address,DEMO_VERIFIER_MODE:'MOCK_TEE',VBB_BRIDGE_URL:bridgeBase,VBB_BRIDGE_TOKEN:bridgeToken};
   // These public test keys are used only by the isolated Anvil chain.
   env.DEMO_PROVIDER_PRIVATE_KEY=toHex(0xb0bn,{size:32});
   env.DEMO_RELAYER_PRIVATE_KEY='0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
@@ -87,6 +91,13 @@ try {
   assert.equal(stored.sessions.at(-1).context.options.judgmentMode,'SKIP_VIDEO');
   assert.equal(stored.sessions.at(-1).phase,'AUTHORIZED');
   assert.equal(stored.sessions[0].phase,'SUPERSEDED');
+  await page.getByRole('button',{name:'Start forward run',exact:true}).click();
+  await page.getByText('Operation records saved. Stop confirmed.',{exact:true}).waitFor();
+  const executed=JSON.parse(await readFile(resolve(temporary,`sessions/31337-${core.toLowerCase()}/${jobId}.json`),'utf8')).sessions.at(-1);
+  assert.equal(executed.phase,'CAPTURED');assert.equal(executed.run.stop.confirmed,true);
+  assert.ok(executed.run.commands.some(event=>event.result==='SENT'&&event.y===1));
+  const duplicate=await(await fetch(bridgeBase+'/jobs/start',{method:'POST',headers:{Authorization:`Bearer ${bridgeToken}`,'content-type':'application/json'},body:JSON.stringify(executed.run.request)})).json();
+  assert.equal(duplicate.operationHash,executed.run.operationHash);
   await mkdir(resolve(root,'artifacts/rover-session'),{recursive:true});
   await page.screenshot({path:resolve(root,'artifacts/rover-session/desktop.png'),fullPage:true});
   await page.setViewportSize({width:390,height:844});
@@ -108,7 +119,7 @@ try {
   assert.equal((await(await request('/api/demo/rover/review',{action:'prepare',jobId})).json()).error,'SESSION_RECORD_INVALID');
   assert.equal((await client.readContract({address:core,abi:erc8183Abi,functionName:'getJob',args:[BigInt(jobId)]})).status,1);
   assert.deepEqual(errors,[]);
-  console.log(JSON.stringify({ok:true,checks:['owner signatures','hidden settings keyboard and pointer','default reset','persisted authorization','mobile Japanese','origin and owner rejection','session payment gate','no robot movement or payment']}));
+  console.log(JSON.stringify({ok:true,checks:['owner signatures','hidden settings keyboard and pointer','default reset','persisted authorization','mock Bridge drive and confirmed stop','recorded commands','idempotent start','mobile Japanese','origin and owner rejection','session payment gate','no physical robot movement or payment']}));
 } catch(error) {
   for(const child of children) console.error(child.log());
   throw error;

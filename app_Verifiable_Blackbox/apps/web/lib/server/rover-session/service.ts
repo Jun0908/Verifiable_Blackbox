@@ -27,7 +27,7 @@ export function parseOptions(value: unknown): RoverOptions {
     || !Number.isInteger(data.speed) || Number(data.speed) < 1 || Number(data.speed) > 50) throw Error("INVALID_SESSION_OPTIONS");
   return data as RoverOptions;
 }
-async function signatureFor(address: Address, message: string, signature: unknown) {
+export async function signatureFor(address: Address, message: string, signature: unknown) {
   if (typeof signature !== "string" || !/^0x[0-9a-f]{130}$/i.test(signature)
     || !await verifyMessage({address, message, signature: signature as Hex}).catch(() => false)) throw Error("OWNER_SIGNATURE_REQUIRED");
 }
@@ -56,6 +56,8 @@ export class RoverSessions {
     if (job.expiredAt <= BigInt(now)) throw Error("JOB_EXPIRED");
     const policy = options.judgmentMode === "VIDEO" ? await this.deps.videoPolicy()
       : {version: "rover-command-v1", drive: "successful-nonzero", stop: "confirmed", analysis: "SKIPPED"};
+    const cameraUrl = options.judgmentMode === "VIDEO" ? (policy as {cameraUrl: string}).cameraUrl : null;
+    if (options.judgmentMode === "VIDEO" && (typeof cameraUrl !== "string" || !cameraUrl.startsWith("http://"))) throw Error("CAMERA_CONFIGURATION_REQUIRED");
     return this.deps.store.update(access.jobId, async record => {
       const duplicate = record.requests[access.requestId];
       if (duplicate) {
@@ -64,7 +66,8 @@ export class RoverSessions {
         if (!existing) throw Error("SESSION_RECORD_INVALID");
         return existing;
       }
-      if (record.sessions.some(s => s.phase === "AUTHORIZED" && s.context.expiresAt > now)) throw Error("SESSION_ALREADY_AUTHORIZED");
+      if (record.sessions.some(s => ["STARTING", "RECORDING", "OPERATING", "STOPPING"].includes(s.phase)
+        || (["AUTHORIZED", "CAPTURED"].includes(s.phase) && s.context.expiresAt > now))) throw Error("SESSION_ALREADY_AUTHORIZED");
       if (record.sessions.length >= 100) throw Error("SESSION_LIMIT_REACHED");
       for (const session of record.sessions) {
         if (session.context.expiresAt <= now) session.phase = "EXPIRED";
@@ -76,8 +79,8 @@ export class RoverSessions {
         core: this.deps.store.scope.core as Address, evaluator: this.deps.evaluator, token: this.deps.token,
         jobId: access.jobId, client: job.client, provider: job.provider, budget: job.budget.toString(), jobExpiresAt: job.expiredAt.toString(),
         sessionId: randomUUID(), nonce: `0x${randomBytes(32).toString("hex")}`, issuedAt: now,
-        expiresAt: Math.min(now + 900, Number(job.expiredAt)), options, camera, policyHash,
-        conditionsHash: roverHash({options, camera, policyHash})};
+        expiresAt: Math.min(now + 900, Number(job.expiredAt)), options, camera, cameraUrl, policyHash,
+        conditionsHash: roverHash({options, camera, cameraUrl, policyHash})};
       const session: RoverSessionRecord = {context, phase: "PREPARED"};
       record.sessions.push(session);
       record.requests[access.requestId] = {hash: roverHash(access), sessionId: context.sessionId};
@@ -103,7 +106,7 @@ export class RoverSessions {
         || context.evaluator.toLowerCase() !== job.evaluator.toLowerCase() || context.token.toLowerCase() !== this.deps.token.toLowerCase()
         || context.budget !== job.budget.toString() || context.jobExpiresAt !== job.expiredAt.toString()) throw Error("SESSION_CONTEXT_CHANGED");
       parseOptions(context.options);
-      if (context.conditionsHash !== roverHash({options: context.options, camera: context.camera, policyHash: context.policyHash})) throw Error("SESSION_CONTEXT_CHANGED");
+      if (context.conditionsHash !== roverHash({options: context.options, camera: context.camera, cameraUrl: context.cameraUrl, policyHash: context.policyHash})) throw Error("SESSION_CONTEXT_CHANGED");
       session.authorizationSignature = signature as Hex;
       session.authorizedAt = new Date(this.deps.now() * 1000).toISOString();
       session.phase = "AUTHORIZED";

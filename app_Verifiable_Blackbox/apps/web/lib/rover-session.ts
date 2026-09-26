@@ -11,12 +11,28 @@ export type RoverSessionContext = {
   version: 1; chainId: number; core: Address; evaluator: Address; token: Address;
   jobId: string; client: Address; provider: Address; budget: string; jobExpiresAt: string;
   sessionId: string; nonce: Hex; issuedAt: number; expiresAt: number;
-  options: RoverOptions; camera: "external-fixed" | null; policyHash: Hex; conditionsHash: Hex;
+  options: RoverOptions; camera: "external-fixed" | null; cameraUrl: string | null; policyHash: Hex; conditionsHash: Hex;
 };
 export type RoverSessionRecord = {
-  context: RoverSessionContext; phase: "PREPARED" | "AUTHORIZED" | "SUPERSEDED" | "EXPIRED";
+  context: RoverSessionContext; phase: "PREPARED" | "AUTHORIZED" | "SUPERSEDED" | "EXPIRED" | "STARTING" | "RECORDING" | "OPERATING" | "STOPPING" | "CAPTURED" | "ERROR";
   authorizationSignature?: Hex; authorizedAt?: string;
+  run?: RoverRun; error?: string;
 };
+export type RoverRunRequest = {
+  sessionId: string; jobId: string; chainId: number; core: Address; judgmentMode: JudgmentMode;
+  operation: RoverOptions["operation"]; durationMs: number; speed: number; cameraUrl: string | null; conditionsHash: Hex; policyHash: Hex; expiresAt: number;
+};
+export type RoverRun = {
+  version: 1; request: RoverRunRequest; phase: "STARTING" | "RECORDING" | "OPERATING" | "STOPPING" | "CAPTURED" | "ERROR";
+  commands: Array<{sessionId: string; sequence: number; sentAt: number; x: number; y: number; z: number; speed: number; deadman: boolean; result: "SENT" | "FAILED"; deviceSequence?: number}>;
+  stop: null | {requestedAt: number; confirmed: boolean; confirmedAt?: number; response?: {armed: boolean; motors: boolean; i2c: boolean}};
+  recording: {state: string; frames: Array<{index: number; sha256: string; capturedAt: number; phase: string}>; sha256?: string | null; framesHash?: string; bytes?: number; error?: string};
+  operationHash?: string; operationStartedAt?: number; operationEndedAt?: number; error?: string;
+};
+export function roverRunRequest(context: RoverSessionContext): RoverRunRequest {
+  return {sessionId: context.sessionId, jobId: context.jobId, chainId: context.chainId, core: context.core,
+    ...context.options, cameraUrl: context.cameraUrl, conditionsHash: context.conditionsHash, policyHash: context.policyHash, expiresAt: context.expiresAt};
+}
 
 export function canonicalJson(value: unknown): string {
   if (value === null || typeof value === "string" || typeof value === "boolean") return JSON.stringify(value);

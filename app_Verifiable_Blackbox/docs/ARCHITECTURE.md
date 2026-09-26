@@ -464,7 +464,7 @@ World認証による開示を追加する場合は、保護対象の映像をpub
 
 本節はT25〜T33で追加する設計とする。Phalaのコード・検証policy・接続設定とContractは変更しない。支払いAPIはT30の対象モードの条件付き受付と拒否試験が揃った経路から有効化し、準備できていないモードは409を維持する。
 
-T26ではセッション準備・条件付き承認・所有者署名による状態取得と発表者用の隠し設定を実装した。開始画面で実行条件を確認して署名するとAUTHORIZEDまで保存する。自動走行・録画・解析・条件付き決済はT27以降で接続する。新規Rover Jobのdescriptionは`vbb://rover/session-v1`とし、保存データがなくてもセッション検査が必要なJobと判別する。Provider提出・承認・検証・決済の入口は、この種別または保存済みRoverセッションを検出すると専用の決済経路を要求する。
+T26ではセッション準備・条件付き承認・所有者署名による状態取得と発表者用の隠し設定を実装した。T27では承認後の開始ボタンから前進・静止を実行し、Bridgeの操作記録・録画・停止確認をCAPTUREDまで保存する。動画解析・条件付き決済はT28以降で接続する。新規Rover Jobのdescriptionは`vbb://rover/session-v1`とし、保存データがなくてもセッション検査が必要なJobと判別する。Provider提出・承認・検証・決済の入口は、この種別または保存済みRoverセッションを検出すると専用の決済経路を要求する。
 
 ### 目的と担当範囲
 
@@ -544,6 +544,8 @@ VIDEOではServer管理の撮影処理で録画開始と開始前の静止区間
 
 録画を今回のsessionIdと結び付け、Server管理の非公開領域へ保管する。任意のファイルパスや別セッションの動画を支払い用録画として登録するAPIは用意しない。生の録画、解析用フレーム、操作記録、実行ログはGit管理から除外する。閲覧はJob所有者を確認するAPI経由とする。
 
+T27のBridgeは`M5stack_RoverC/rover-python/.rover-sessions/<sessionId>/`へ`run.json`、JPEGフレーム、`recording.mjpeg`を保存する。保存先はServer専用の`ROVER_JOB_RECORDING_DIR`で指定できる。VIDEOでは操作前後それぞれ0.6秒を取得し、各区間と操作中に最低3フレームを要求する。フレームは約10fpsで受信時刻の重複を除外して取得し、録画・フレーム列のSHA-256を保存する。準備時のカメラ接続先を署名条件とpolicyHashへ含め、開始時とBridgeの占有取得時に照合する。録画用スレッドと制御処理を分け、SKIP_VIDEOではカメラがなくても開始できる。
+
 ### 動画解析
 
 StegaVARのRover動作計測を共通処理として再利用する。支払いデモは今回の録画からフレームを抽出して解析し、入力元を`job-recording`と明示する。第10節の復元映像の解析と入力元を区別する。録画直後の埋込み・復元は今回の決済経路の必須処理にはしない。
@@ -606,6 +608,8 @@ Bridgeの操作記録・撮影処理はRover Python側へ追加する。既存�
 `session`は対象Jobの所有者と状態を確認して実行条件を準備する。`start`は署名を検証して開始し、同じ要求の再送で再走行しない。`status`と録画閲覧も所有者を確認する。変更要求には同一Origin等の既存API保護を適用する。
 
 T26の`session` POSTは`prepare`と`authorize`を受け付ける。prepareはJob・判定モード・操作条件・要求ID・発行時刻に対する所有者署名を確認し、authorizeはServer発行のsessionId・nonceを含む条件付き承認の署名を保存する。`session/status`はPOSTで所有者のアクセス署名を受け取り、保存済みの状態を返す。アクセス署名は5分、条件付き承認は最大15分かJob期限の早い方まで有効。同じprepare要求の再送は同じセッションを返し、使用済み承認は再消費しない。状態は`ROVER_SESSION_DIR`または`apps/web/.rover-sessions/`にJob単位で排他・atomic保存する。
+
+T27の`session/start` POSTはjobId・sessionId・条件付き承認署名と`start`／`stop`を受け付ける。開始前にSTARTINGを保存し、Bridgeの`/jobs/start`へ固定した条件を送る。Bridgeは同じsessionIdの再送に保存済み状態を返し、再走行しない。`session/status`は条件付き承認署名による進捗取得にも対応する。ブラウザが閉じてもBridgeの作業スレッドが停止まで進め、Webが戻った際に`/jobs/status`から記録を取得する。Bridge再起動で中断された記録はERRORとする。緊急停止は`/jobs/stop`へ接続する。T27のCAPTUREDは操作・録画記録の取得完了であり、動画認識や支払いの成功を示さない。
 
 `complete`はjobId・sessionIdだけを受け取り、Server保存済みデータを検査する。任意のEvidenceや解析成功値を入力して支払う方式にしない。合格時は処理開始・進捗・決済済み結果を返し、条件不足時は409と理由を返す。認証・承認が不正な要求は拒否する。
 
