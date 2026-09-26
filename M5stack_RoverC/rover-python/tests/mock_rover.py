@@ -27,6 +27,7 @@ class MockRover:
         self.started = time.monotonic()
         self.last_control = self.started
         self.target = None
+        self.camera_jpeg = None
         device = self
 
         class Handler(BaseHTTPRequestHandler):
@@ -34,6 +35,16 @@ class MockRover:
             def do_GET(self): self.dispatch()
             def do_POST(self): self.dispatch()
             def dispatch(self):
+                if self.path == '/stream' and device.camera_jpeg:
+                    self.send_response(200)
+                    self.send_header('Content-Type','multipart/x-mixed-replace; boundary=frame')
+                    self.end_headers()
+                    try:
+                        while not device.done.wait(.08):
+                            self.wfile.write(b'--frame\r\nContent-Type: image/jpeg\r\n\r\n'+device.camera_jpeg+b'\r\n')
+                            self.wfile.flush()
+                    except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError): pass
+                    return
                 body = parse_qs(self.rfile.read(int(self.headers.get('Content-Length', 0))).decode())
                 with device.lock:
                     code = 200

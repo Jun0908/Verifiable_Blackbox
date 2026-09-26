@@ -3,6 +3,7 @@ import {createServer} from 'node:net';
 import {existsSync, mkdirSync, readFileSync} from 'node:fs';
 import {resolve} from 'node:path';
 import {randomBytes} from 'node:crypto';
+import {bridgeEnvironment} from '../../M5stack_RoverC/scripts/bridge-environment.mjs';
 import {parseEnv} from 'node:util';
 
 const root = resolve(import.meta.dirname, '..');
@@ -86,11 +87,11 @@ try {
     let bridge;
     if(roverMock) bridge=launch(process.execPath,[resolve(root,'scripts/mock-bridge.mjs')]);
     else {
-      const roverRoot=resolve(process.env.ROVER_PYTHON_ROOT||resolve(root,'../../M5stack_RoverC/rover-python'));
+      const roverRoot=resolve(process.env.ROVER_PYTHON_ROOT||resolve(root,'../M5stack_RoverC/rover-python'));
       const python=process.env.ROVER_PYTHON||resolve(roverRoot,process.platform==='win32'?'.venv/Scripts/python.exe':'.venv/bin/python');
       if(!existsSync(python)||!existsSync(resolve(roverRoot,'web_bridge_server.py')))throw Error('Python or Rover project missing. Set ROVER_PYTHON_ROOT and create its .venv; see docs/ROVER.md');
       console.log('Hardware bridge: keep the robot in view. No ARM until Connect; an offline robot is reported by the UI.');
-      bridge=launch(python,['web_bridge_server.py','--camera','--no-browser','--port',String(bridgePort)],{cwd:roverRoot});
+      bridge=launch(python,['web_bridge_server.py','--camera','--no-browser','--port',String(bridgePort)],{cwd:roverRoot,env:bridgeEnvironment(env)});
     }
     await ready(bridge,async()=>{const r=await fetch(env.VBB_BRIDGE_URL+'/status',{headers:{Authorization:'Bearer '+env.VBB_BRIDGE_TOKEN},signal:AbortSignal.timeout(1000)});if(!r.ok)throw Error('Bridge unavailable');});
   }
