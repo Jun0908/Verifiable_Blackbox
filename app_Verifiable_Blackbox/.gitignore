@@ -14,6 +14,7 @@ node_modules/
 
 # Next.js, TypeScript and test output
 .next/
+.next-rover-session-test/
 out/
 *.tsbuildinfo
 coverage/
@@ -30,6 +31,7 @@ broadcast/
 
 # Local runtime state, device keys and temporary files
 /apps/web/.demo-reviews/
+/apps/web/.rover-sessions/
 /apps/web/.demo-gas/
 /apps/web/.ledger/
 /parts/device-signature/local/

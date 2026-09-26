@@ -303,7 +303,7 @@ export function DemoDashboard() {
         deployment.provider,
         deployment.evaluator,
         BigInt(Math.floor(Date.now() / 1000) + 86_400),
-        `vbb://demo/${scenario}`,
+        source === "rover" ? "vbb://rover/session-v1" : `vbb://demo/${scenario}`,
         deployment.evidenceHook,
       ],
     );

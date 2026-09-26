@@ -1,4 +1,5 @@
 import "server-only";
+import {assertApprovalOnlyJob} from "./rover-session/guard";
 
 import {randomBytes, createHash} from "node:crypto";
 import {isAddress, isHex, recoverTypedDataAddress, type Hex} from "viem";
@@ -285,6 +286,7 @@ async function verifyWithMock(evidence: DemoEvidenceV1): Promise<DemoVerifyRespo
 }
 
 export async function verifyEvidence(evidence: DemoEvidenceV1) {
+  await assertApprovalOnlyJob(evidence.jobId);
   const config = getVerifierConfig();
   return config.mode === "PHALA"
     ? verifyWithPhala(evidence, config)

@@ -9,6 +9,7 @@ import {assertDemoAutomationEnabled, getDeployment, getPublicClient} from "./con
 import {getFundedDemoJob, submitDemoEvidence} from "./provider";
 import {verifyEvidence} from "./verifier";
 import {settleDemoVerdict} from "./settlement";
+import {assertApprovalOnlyJob} from "./rover-session/guard";
 
 function recordPath(jobId: string) {
   if (!/^[1-9][0-9]{0,77}$/.test(jobId)) throw new Error("INVALID_JOB_ID");
@@ -25,6 +26,7 @@ export async function readDemoReview(jobId: string): Promise<DemoReviewRecord | 
 // for explicit reconciliation, rather than risking an automatic second broadcast.
 export async function updateDemoReview(jobId: string, action: string, signature?: unknown) {
   assertDemoAutomationEnabled();
+  await assertApprovalOnlyJob(BigInt(jobId));
   const path = recordPath(jobId);
   await mkdir(resolve(path, ".."), {recursive: true});
   const lock = `${path}.lock`;

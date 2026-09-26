@@ -3,6 +3,7 @@ import "server-only";
 import {isAddress, isHex, zeroHash, type Hex} from "viem";
 import {evaluatorAbi, type DemoVerdictWire} from "@/lib/contracts";
 import {getDeployment, getPublicClient, getWalletClient} from "@/lib/server/config";
+import {assertApprovalOnlyJob} from "./rover-session/guard";
 
 const DECIMAL_PATTERN = /^(0|[1-9][0-9]*)$/;
 const UINT64_MAX = (1n << 64n) - 1n;
@@ -47,6 +48,7 @@ export function parseDemoVerdict(input: unknown): DemoVerdictWire {
 
 export async function settleDemoVerdict(input: unknown, signature: unknown, onBroadcast?: (hash: Hex) => Promise<void>) {
   const verdict = parseDemoVerdict(input);
+  await assertApprovalOnlyJob(BigInt(verdict.jobId));
   if (
     typeof signature !== "string"
     || !isHex(signature, {strict: true})

@@ -4,6 +4,7 @@ import {useRouter} from "next/navigation";
 import {useDemoWallet} from "./wallet-context";
 import Link from "next/link";
 import {RoverControl} from "@/components/rover-control";
+import {RoverSessionPanel} from "@/components/rover-session-panel";
 import {SiteHeader} from "@/components/site-header";
 import {JobProgress} from "@/components/job-progress";
 import {useLanguage} from "@/components/language";
@@ -58,6 +59,7 @@ export function RoverPage({requestedJob}: {requestedJob?: string}) {
     <section className="operator-intro"><span className="eyebrow">{requestedJob ? t("STEP 2 · ROBOT CONTROL", "STEP 2 · ロボット操作") : t("FREE DRIVE", "自由に操作")}</span><h1>{job ? `Job #${job.jobId}` : t("Enjoy the drive.", "気軽に、自由に操作。")}</h1><p>{t("Connect, choose a speed, and hold a direction. Release to stop.", "接続し、速度を選んで方向ボタンを押してください。離すと停止します。")}</p></section>
     {!requestedJob ? <><p className="free-drive-note">{t("No job needed. Connect and enjoy driving.", "仕事の作成は不要です。接続して自由に操作できます。")}</p><RoverControl key="free-drive" onFinished={finish} exitRef={exitRef} /></> : loading ? <div className="empty-job"><p role="status">{t("Loading your job…", "仕事を読み込んでいます…")}</p><Link className="primary-link" href="/">{t("Return to overview", "概要へ戻る")} →</Link></div> : job ? <>
       <JobProgress created operated={false} verified={false} paid={false} operating />
+      <RoverSessionPanel key={`session:${wallet}:${job.createTransactionHash}`} job={job} />
       <RoverControl key={`${wallet}:${job.createTransactionHash}`} onFinished={finish} exitRef={exitRef} />
     </> : <section className="panel empty-job">{!authenticated && <button onClick={login}>{t("Sign in", "ログイン")}</button>}<h2>{t(problem === "missing" ? "Create a job to begin" : problem === "closed" ? "This job is no longer open" : "Unable to load your job", problem === "missing" ? "仕事を作成して始めましょう" : problem === "closed" ? "この仕事の操作は終了しています" : "仕事を読み込めませんでした")}</h2><Link className="primary-link" href="/">{t("Return to overview", "概要へ戻る")} →</Link><Link className="free-drive-link" href="/rover">{t("Or drive freely without a job", "仕事なしで自由に操作する")} →</Link></section>}
   </main>;
