@@ -2,7 +2,7 @@
 
 作成日: 2026-09-26
 
-進捗: T01〜T10の実装とローカル確認、T07の実Phala／Sepolia接続照合、T11のローカル通し試験、T12の資料・動画・新規cloneでの再現確認を完了。模擬Evidenceによる実Phala検証・Sepolia決済も確認済み。T11の実機操作・Privy承認・実Phala検証・Sepolia決済・Receipt表示を一連で行う有人の通し確認は未完了。結果は [確認記録](internal/VALIDATION.md) に記載し、未確認項目はチェックを残す。T13の台帳データ処理・設定・単体試験を完了。T14のMultiBaas取得API・snapshot保存とJob 1の100.00 mUSDC支払い照合を完了。T15の支払実績ページを完了。T16の月次集計・CSV出力を完了。T17は統合確認中。
+進捗: T01〜T10の実装とローカル確認、T07の実Phala／Sepolia接続照合、T11のローカル通し試験、T12の資料・動画・新規cloneでの再現確認を完了。模擬Evidenceによる実Phala検証・Sepolia決済も確認済み。T11の実機操作・Privy承認・実Phala検証・Sepolia決済・Receipt表示を一連で行う有人の通し確認は未完了。確認範囲は各タスクに記載し、未確認項目はチェックを残す。T13の台帳データ処理・設定・単体試験を完了。T14のMultiBaas取得API・snapshot保存とJob 1の100.00 mUSDC支払い照合を完了。T15の支払実績ページを完了。T16の月次集計・CSV出力を完了。T17の統合確認・build・関連資料の整備を完了。
 
 [ARCHITECTURE.md](ARCHITECTURE.md)に基づき、開発環境、画面、Contract、Evidence検証、決済、実機操作、支払台帳・月次集計を段階的に実装する。
 
@@ -221,12 +221,29 @@
 
 依存: T14・T15・T16。
 
-- [ ] 実取得、根拠不足、不一致、確認待ち、API停止、再起動後の表示を確認する。
-- [ ] Job作成・操作・承認・決済・領収書の導線を回帰確認する。
-- [ ] 型チェック・buildと台帳の関連試験を実行する。
-- [ ] Architectureとセットアップ手順へ台帳機能の実装内容を反映する。
+- [x] 実取得、根拠不足、不一致、確認待ち、API停止、再起動後の表示を確認する。
+- [x] Job作成・操作・承認・決済・領収書の導線を回帰確認する。
+- [x] 型チェック・buildと台帳の関連試験を実行する。
+- [x] Architectureとセットアップ手順へ台帳機能の実装内容を反映する。
 
 完了条件: アプリ内で支払実績の取得・根拠確認・月次集計・CSV出力まで操作でき、台帳の障害が決済フローへ影響しない。
+
+## 台帳の確認結果
+
+- MultiBaasからSepolia Job 1の3取引を取得し、100.00 mUSDCの支払いを照合。
+- 台帳の単体・取得・保存・異常系24件、Job状態・履歴、Rover API 5件、機体署名18件、Contract 10件を確認。
+- 独立したAnvil環境で、承認・期限・Phala障害・再試行・並行要求・支払い1回の成立を確認。
+- ブラウザで支払根拠、照合状態4種類、日英切替、390px幅、月次集計、CSVダウンロード、0件の月を確認。
+- 実取得snapshotからJob 1を復元し、保存済み表示と照合結果を確認。
+- `npm run typecheck:web`と`npm run build:web`が成功。
+
+確認コマンド:
+
+```powershell
+node --import ./scripts/register-ts.mjs --experimental-transform-types --test scripts/test-ledger-*.test.ts
+node --import ./scripts/register-ts.mjs --experimental-transform-types scripts/check-ledger-live.mjs
+node scripts/test-ledger-browser.mjs
+```
 
 ## 将来の拡張
 

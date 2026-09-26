@@ -70,3 +70,28 @@ npm run test:browser
 - [出典・ライセンス](docs/DEPENDENCIES.md)
 
 ローカル実行時の承認文書・署名・動画原本・秘密設定はGit対象外です。実Phalaへの接続と実機からSepolia決済までの有人確認は、確認結果に明記した残作業です。
+
+## 支払台帳・月次集計
+
+`.env.ledger.example`を参考に、rootの`.env`へ`MULTIBAAS_URL`と`MULTIBAAS_API_KEY`を設定します。MultiBaas環境はEthereum Sepoliaを選択し、chain status・receipt・blockを読み取れるAPIキーを使用します。
+
+Webを終了してから、アプリrootで次を実行します。
+
+```powershell
+cd apps/web
+node --env-file=../../.env ../../node_modules/next/dist/bin/next dev --hostname 127.0.0.1 --port 3000
+```
+
+[台帳画面](http://127.0.0.1:3000/ledger)の「MultiBaasから更新」で、Job 1の支払いと照合結果を表示します。対象は`apps/web/lib/ledger/selection.json`の3取引に固定し、日本時間2026年9月26日分までを含みます。保存済み結果には取得時刻を表示します。
+
+「月次集計デモ」では2026年9月の120件・3社・12.00 mUSDCを表示し、集計CSVと明細CSVをダウンロードできます。サンプルの集計は実支払いと分かれています。
+
+アプリrootからの確認コマンド:
+
+```powershell
+node --import ./scripts/register-ts.mjs --experimental-transform-types --test scripts/test-ledger-*.test.ts
+node --import ./scripts/register-ts.mjs --experimental-transform-types scripts/check-ledger-live.mjs
+node scripts/test-ledger-browser.mjs
+```
+
+ブラウザ試験にはWindowsのMicrosoft Edgeを使用します。別のChromium実行ファイルを使う場合は`CHROMIUM_EXECUTABLE`を指定します。接続設定とsnapshotはGit対象外です。構成は [Architecture](docs/ARCHITECTURE.md)、依存関係は [Dependencies](docs/DEPENDENCIES.md) を参照してください。
