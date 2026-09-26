@@ -133,7 +133,30 @@ void setup() {
   cameraReady = true;
 }
 
+void processUsbNetworkCommand() {
+  static char buffer[24];
+  static size_t length = 0;
+  static bool overflow = false;
+  for (int budget = 0; budget < 32 && Serial.available(); ++budget) {
+    char ch = Serial.read();
+    if (ch == '\r') continue;
+    if (ch != '\n') {
+      if (length < sizeof(buffer) - 1) buffer[length++] = ch;
+      else overflow = true;
+      continue;
+    }
+    buffer[length] = 0;
+    bool home = !overflow && strcmp(buffer, "network home") == 0;
+    bool hotspot = !overflow && strcmp(buffer, "network hotspot") == 0;
+    if ((home || hotspot) && !wifiProfiles.switchPending() && wifiProfiles.select(hotspot))
+      Serial.println("USB NETWORK: selection queued");
+    else Serial.println("USB NETWORK: invalid, unconfigured or busy");
+    length = 0; overflow = false;
+  }
+}
+
 void loop() {
+  processUsbNetworkCommand();
   if (cameraReady) {
     wifiProfiles.poll();
     const bool connected = WiFi.status() == WL_CONNECTED;

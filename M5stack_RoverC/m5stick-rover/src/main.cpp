@@ -425,7 +425,6 @@ void connectWifi() {
   wifiProfiles.begin("roverc");
 }
 
-#if DEVICE_SIGNATURE_ENABLED
 // Physical USB recovery when the previously selected access point is absent.
 // Never changes credentials or enables an automatic network fallback.
 void processUsbNetworkCommand() {
@@ -447,7 +446,11 @@ void processUsbNetworkCommand() {
     overflow = false;
     if (!home && !hotspot) {
       Serial.println("USB NETWORK: expected network home or network hotspot");
-    } else if (DeviceSignature::busy() || wifiProfiles.switchPending()) {
+    } else if (wifiProfiles.switchPending()
+#if DEVICE_SIGNATURE_ENABLED
+               || DeviceSignature::busy()
+#endif
+    ) {
       Serial.println("USB NETWORK: busy; retry later");
     } else if (!wifiProfiles.configured(hotspot)) {
       Serial.println("USB NETWORK: profile not configured");
@@ -463,6 +466,7 @@ void processUsbNetworkCommand() {
   }
 }
 
+#if DEVICE_SIGNATURE_ENABLED
 void handleDeviceSignature(bool keyOnly) {
   if (!authorized()) return;
   if (armed || motorsRunning || diagnosticPulse || wifiProfiles.switchPending()) {
@@ -767,9 +771,7 @@ void setup() {
 
 void loop() {
   M5.update();
-#if DEVICE_SIGNATURE_ENABLED
   processUsbNetworkCommand();
-#endif
   maintainWifi();
   if (WiFi.status() == WL_CONNECTED && serverStarted) {
     server.handleClient();
