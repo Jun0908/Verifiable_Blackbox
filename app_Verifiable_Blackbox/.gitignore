@@ -10,6 +10,7 @@ node_modules/
 /deployments/demo.local.json
 /deployments/demo.phala.local.json
 /docs/evidence/*.webm
+/docs/internal/
 
 # Next.js, TypeScript and test output
 .next/
@@ -29,6 +30,8 @@ broadcast/
 
 # Local runtime state, device keys and temporary files
 /apps/web/.demo-reviews/
+/apps/web/.demo-gas/
+/apps/web/.ledger/
 /parts/device-signature/local/
 /tmp/
 /.approval-test-*/
