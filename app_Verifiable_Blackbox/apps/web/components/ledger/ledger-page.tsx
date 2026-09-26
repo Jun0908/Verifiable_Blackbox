@@ -6,6 +6,7 @@ import {useLanguage} from "@/components/language";
 import {formatAmount} from "@/lib/ledger/monthly-demo";
 import type {LedgerState} from "@/lib/server/curvegrid/state";
 import "./ledger.css";
+import {publicPreview} from "@/lib/public-preview";
 
 type View = ReturnType<LedgerState["publicState"]>;
 const stateText = {
@@ -25,11 +26,12 @@ export function LedgerPage() {
   const {language,t} = useLanguage();
   const translate = (pair: readonly [string,string]) => t(pair[0],pair[1]);
   const [view,setView] = useState<View | null>(null);
-  const [tab,setTab] = useState<"payments" | "monthly">("payments");
+  const [tab,setTab] = useState<"payments" | "monthly">(publicPreview ? "monthly" : "payments");
   const [busy,setBusy] = useState(false);
   const [error,setError] = useState<string | null>(null);
   const refreshing = useRef(false);
   useEffect(()=>{
+    if (publicPreview) return;
     const controller=new AbortController();
     void fetch("/api/ledger",{cache:"no-store",signal:controller.signal}).then(async r=>{
       if (!r.ok) throw Error("FETCH_FAILED");
@@ -62,7 +64,7 @@ export function LedgerPage() {
     {tab === "monthly" ? <MonthlyPanel/> : <section className="panel ledger-panel" aria-busy={busy}>
       <div className="ledger-actions"><h2>{t("Payment records","支払実績")}</h2>
         <button disabled={busy || !view?.configured} onClick={()=>void refresh()}>{busy ? t("Fetching…","取得中…") : t("Refresh from MultiBaas","MultiBaasから更新")}</button></div>
-      <p role="status">{busy ? translate(stateText.loading) : view ? translate(stateText[view.state]) : t("Loading ledger…","台帳を読み込み中…")}</p>
+      <p role="status">{publicPreview ? t("Live payment records are not connected in this preview. Explore the Monthly sample tab.","このプレビューでは実際の支払実績に接続していません。月次集計デモをご覧ください。") : busy ? translate(stateText.loading) : view ? translate(stateText[view.state]) : t("Loading ledger…","台帳を読み込み中…")}</p>
       {errorMessage && <p className="ledger-error" role="alert">{translate(errorMessage)}</p>}
       {view?.state === "not_configured" && <p>{t("Set MULTIBAAS_URL and MULTIBAAS_API_KEY on the server to fetch payments.","ServerにMULTIBAAS_URLとMULTIBAAS_API_KEYを設定すると取得できます。")}</p>}
       {view && <>

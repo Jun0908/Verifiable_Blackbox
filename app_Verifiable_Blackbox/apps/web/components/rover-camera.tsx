@@ -1,4 +1,5 @@
 "use client";
+import {publicPreview} from "@/lib/public-preview";
 
 import {useEffect, useRef, useState} from "react";
 import {useLanguage} from "./language";
@@ -19,7 +20,7 @@ export function RoverCamera() {
   const [revision, setRevision] = useState(0);
 
   useEffect(() => {
-    if (busy) return;
+    if (busy || publicPreview) return;
     let cancelled = false, timer: ReturnType<typeof setTimeout>;
     let lastFrame = "", lastReceived = 0, nextStatus = 0;
     let current: CameraStatus | undefined;
@@ -72,6 +73,7 @@ export function RoverCamera() {
   }, [busy, revision]);
 
   async function configure(body: unknown) {
+    if (publicPreview) return;
     setBusy(true); setError(false); setLive(false);
     try {
       const response = await fetch(endpoint, {method: "POST", headers: {"Content-Type": "application/json"},
@@ -83,7 +85,7 @@ export function RoverCamera() {
     finally {setBusy(false); setRevision(value => value + 1);}
   }
 
-  const state = busy ? t("Saving…", "保存中…") : unavailable ? t("Camera unavailable · retrying", "カメラ未接続・再接続中") :
+  const state = publicPreview ? t("Live camera is available in the local demo.", "ライブカメラはローカルデモで利用できます。") : busy ? t("Saving…", "保存中…") : unavailable ? t("Camera unavailable · retrying", "カメラ未接続・再接続中") :
     info && !info.enabled ? t("Camera OFF", "カメラ OFF") : info && !info.configured ? t("Set the camera address below.", "下の設定でカメラのアドレスを入力してください。") : t("Connecting to camera…", "カメラへ接続中…");
   return <section className="rover-camera" aria-label={t("Camera", "カメラ")}>
     <div className="rover-camera-heading"><h3>{t("Camera", "カメラ")}</h3><span role="status">{live ? t("LIVE", "ライブ映像") : t("Waiting", "待機中")}</span></div>
@@ -96,8 +98,8 @@ export function RoverCamera() {
         <button type="button" aria-pressed={info?.enabled === true} disabled={busy || !info || info.enabled} onClick={() => void configure({action: "power", enabled: true})}>ON</button>
         <button type="button" aria-pressed={info?.enabled === false} disabled={busy || !info || !info.enabled} onClick={() => void configure({action: "power", enabled: false})}>OFF</button></div>
       <form onSubmit={event => {event.preventDefault(); void configure({action: "configure", url});}}>
-        <label>{t("Camera address", "カメラのアドレス")}<input value={url} onChange={event => {initialized.current = true; setUrl(event.target.value);}} maxLength={1024} disabled={busy} placeholder="http://192.168.1.10:81/stream" /></label>
-        <button type="submit" disabled={busy}>{t("Connect & save", "接続・保存")}</button>
+        <label>{t("Camera address", "カメラのアドレス")}<input value={url} onChange={event => {initialized.current = true; setUrl(event.target.value);}} maxLength={1024} disabled={busy || publicPreview} placeholder="http://192.168.1.10:81/stream" /></label>
+        <button type="submit" disabled={busy || publicPreview}>{t("Connect & save", "接続・保存")}</button>
       </form>
       {error && <p role="alert">{t("Could not save. Check the camera address.", "保存できません。カメラのアドレスを確認してください。")}</p>}
     </details>

@@ -6,6 +6,8 @@ import {useLanguage} from "@/components/language";
 import {SiteHeader} from "@/components/site-header";
 import type {ReactNode} from "react";
 import {LocalWalletProvider, PrivyWalletBridge} from "@/components/wallet-context";
+import {PreviewWalletProvider} from "@/components/preview-wallet";
+import {publicPreview} from "@/lib/public-preview";
 
 export function Providers({children}: {children: ReactNode}) {
   const {t} = useLanguage();
@@ -13,6 +15,8 @@ export function Providers({children}: {children: ReactNode}) {
   const clientId = process.env.NEXT_PUBLIC_PRIVY_CLIENT_ID;
   const chainId = Number(process.env.NEXT_PUBLIC_CHAIN_ID ?? 31337);
   const rpcUrl = process.env.NEXT_PUBLIC_RPC_URL ?? "http://127.0.0.1:8545";
+
+  if (publicPreview) return <PreviewWalletProvider>{children}</PreviewWalletProvider>;
 
   if (process.env.NEXT_PUBLIC_LOCAL_DEMO === "true" && chainId === 31337) {
     return <LocalWalletProvider>{children}</LocalWalletProvider>;

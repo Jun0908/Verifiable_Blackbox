@@ -12,7 +12,7 @@ type WalletState = {
   getIdentityToken():Promise<string | null>;
   sendTransaction(tx:{to:Address; data:Hex}, options?:unknown):Promise<{hash:Hex}>;
 };
-const WalletContext = createContext<WalletState | null>(null);
+export const WalletContext = createContext<WalletState | null>(null);
 export function useDemoWallet() {
   const value=useContext(WalletContext);
   if(!value) throw Error('Wallet provider missing');

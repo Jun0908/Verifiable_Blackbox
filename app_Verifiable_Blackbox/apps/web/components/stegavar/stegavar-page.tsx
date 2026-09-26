@@ -5,6 +5,8 @@ import {useLanguage} from "@/components/language";
 import type {Catalog} from "@/lib/stegavar/types";
 import {FramePlayer} from "./frame-player";
 import {AnalysisPanel} from "./analysis-panel";
+import {HowItWorks} from "./how-it-works";
+import {publicPreview} from "@/lib/public-preview";
 import "./stegavar.css";
 
 export function StegavarPage() {
@@ -15,7 +17,7 @@ export function StegavarPage() {
   const [sceneId,setSceneId]=useState("surf");
   useEffect(()=>{
     const controller=new AbortController();
-    void fetch("/api/stegavar/assets/catalog.json",{signal:controller.signal}).then(async response=>{
+    void fetch(publicPreview ? "/stegavar/catalog.json" : "/api/stegavar/assets/catalog.json",{signal:controller.signal}).then(async response=>{
       if(!response.ok)throw Error();setCatalog(await response.json());
     }).catch(()=>{if(!controller.signal.aborted)setFailed(true);});
     return ()=>controller.abort();
@@ -32,5 +34,6 @@ export function StegavarPage() {
       <FramePlayer key={`player/${caseId}/${sceneId}`} scene={scene}/>
       <AnalysisPanel key={`analysis/${caseId}/${sceneId}`} scene={scene}/>
     </>}
+    <HowItWorks scenes={catalog?.cases[0]?.scenes}/>
   </main>;
 }
