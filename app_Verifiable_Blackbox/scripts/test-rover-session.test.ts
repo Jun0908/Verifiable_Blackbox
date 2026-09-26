@@ -7,7 +7,8 @@ import {privateKeyToAccount} from "viem/accounts";
 import {toHex, type Address} from "viem";
 import {RoverSessions} from "../apps/web/lib/server/rover-session/service.ts";
 import {RoverSessionStore} from "../apps/web/lib/server/rover-session/store.ts";
-import {roverAccessMessage, roverAuthorizationMessage, type RoverAccess, type RoverOptions} from "../apps/web/lib/rover-session.ts";
+import {roverAccessMessage, roverAuthorizationMessage, roverRunRequest, roverSkipAuthorizationMessage,
+  type RoverAccess, type RoverOptions, type RoverRun} from "../apps/web/lib/rover-session.ts";
 
 const owner = privateKeyToAccount(toHex(111n, {size: 32}));
 const stranger = privateKeyToAccount(toHex(222n, {size: 32}));
@@ -127,4 +128,112 @@ test("cross-worker lock prevents concurrent writers and damaged storage never cr
   await writeFile(path, "{broken");
   await assert.rejects(f.prepare(), /SESSION_RECORD_INVALID/);
   assert.equal(await readFile(path, "utf8"), "{broken");
+});
+
+async function stoppedFixture(t: TestContext) {
+  const f = await fixture(t);
+  const prepared = await f.prepare(f.access({...skip, judgmentMode: "VIDEO"}));
+  const signature = await owner.signMessage({message: roverAuthorizationMessage(prepared.context)});
+  const session = await f.service.authorize("1", prepared.context.sessionId, signature);
+  const now = session.context.issuedAt;
+  const run: RoverRun = {version: 1, request: roverRunRequest(session.context), phase: "CAPTURED", forwardPressed: true,
+    commands: [{sessionId: session.context.sessionId, sequence: 1, sentAt: now + 1, x: 0, y: 1, z: 0, speed: 35, deadman: true, result: "SENT"}],
+    stop: {requestedAt: now + 3, confirmed: true, confirmedAt: now + 4},
+    operationStartedAt: now + 1, operationEndedAt: now + 3, operationHash: "ab".repeat(32),
+    recording: {state: "ERROR", frames: [], error: "RECORDING_UNAVAILABLE"}};
+  const mutate = async (change: (value: typeof session) => void) => f.store.update("1", async job => {change(job.sessions.at(-1)!);});
+  await mutate(value => {value.run = run; value.phase = "CAPTURED";});
+  f.advance(5);
+  const prepareSkip = () => f.service.prepareSkip("1", session.context.sessionId, signature);
+  return {...f, session, signature, mutate, prepareSkip};
+}
+
+test("additional skip approval binds the stopped operation and preserves the signed session and recording", async t => {
+  const f = await stoppedFixture(t);
+  f.service.deps.videoPolicy = async () => {throw Error("ANALYSIS_OFFLINE");};
+  const before = (await f.store.read("1"))!.sessions.at(-1)!;
+  const prepared = await f.prepareSkip(), context = prepared.skipApproval!.context;
+  assert.equal(context.purpose, "SKIP_VIDEO_AFTER_STOP");
+  assert.equal(context.budget, before.context.budget);
+  assert.equal(context.provider, before.context.provider);
+  assert.equal(context.sessionId, before.context.sessionId);
+  assert.match(roverSkipAuthorizationMessage(context), /INCONCLUSIVE or STILL/);
+  assert.deepEqual((await f.prepareSkip()).skipApproval, prepared.skipApproval);
+  const signature = await owner.signMessage({message: roverSkipAuthorizationMessage(context)});
+  const approved = await f.service.authorizeSkip("1", context.sessionId, signature);
+  const retry = await f.service.authorizeSkip("1", context.sessionId, signature);
+  assert.deepEqual(approved, retry);
+  assert.deepEqual(approved.context, before.context);
+  assert.equal(approved.authorizationSignature, before.authorizationSignature);
+  assert.deepEqual(approved.run, before.run);
+  assert.equal(approved.phase, before.phase);
+  assert.equal(approved.skipApproval!.signature, signature);
+  assert.equal((await new RoverSessionStore(f.root, f.scope).read("1"))!.sessions.at(-1)!.skipApproval!.signature, signature);
+});
+
+test("skip approval rejects missing or false forward presses, failed commands and unconfirmed stops", async t => {
+  const f = await stoppedFixture(t);
+  const good = structuredClone((await f.store.read("1"))!.sessions.at(-1)!);
+  const cases: Array<[(run: RoverRun) => void, RegExp]> = [
+    [run => {delete run.forwardPressed;}, /FORWARD_PRESS_REQUIRED/],
+    [run => {run.forwardPressed = false;}, /FORWARD_PRESS_REQUIRED/],
+    [run => {run.forwardPressed = null;}, /FORWARD_PRESS_REQUIRED/],
+    [run => {run.commands[0].result = "FAILED";}, /DRIVE_NOT_SENT/],
+    [run => {run.commands[0].sessionId = randomUUID();}, /DRIVE_NOT_SENT/],
+    [run => {run.stop!.confirmed = false;}, /STOP_UNCONFIRMED/],
+    [run => {run.stop!.confirmedAt = run.commands[0].sentAt - 1;}, /STOP_UNCONFIRMED/],
+    [run => {delete run.operationEndedAt;}, /RUN_NOT_COMPLETED/],
+    [run => {run.request.speed = 50;}, /RUN_CONTEXT_MISMATCH/],
+  ];
+  for (const [change, reason] of cases) {
+    await f.mutate(record => {Object.assign(record, structuredClone(good)); change(record.run!);});
+    await assert.rejects(f.prepareSkip(), reason);
+    assert.equal((await f.store.read("1"))!.sessions.at(-1)!.skipApproval, undefined);
+  }
+});
+
+test("skip approval permits a recording failure after completed control but rejects interrupted control", async t => {
+  const f = await stoppedFixture(t);
+  await f.mutate(record => {record.phase = record.run!.phase = "ERROR"; record.error = record.run!.error = "RUN_CANCELLED";});
+  await assert.rejects(f.prepareSkip(), /RUN_NOT_COMPLETED/);
+  await f.mutate(record => {record.error = record.run!.error = "RECORDING_INCOMPLETE";});
+  assert.ok((await f.prepareSkip()).skipApproval);
+});
+
+test("additional approval requires its owner signature and cannot be moved to another Job or session", async t => {
+  const f = await stoppedFixture(t);
+  await assert.rejects(f.service.prepareSkip("1", f.session.context.sessionId,
+    await stranger.signMessage({message: roverAuthorizationMessage(f.session.context)})), /OWNER_SIGNATURE_REQUIRED/);
+  const prepared = await f.prepareSkip(), context = prepared.skipApproval!.context;
+  await assert.rejects(f.service.authorizeSkip("1", context.sessionId,
+    await stranger.signMessage({message: roverSkipAuthorizationMessage(context)})), /OWNER_SIGNATURE_REQUIRED/);
+  await assert.rejects(f.service.authorizeSkip("1", context.sessionId, f.signature), /OWNER_SIGNATURE_REQUIRED/);
+  for (const change of [{budget: "1"}, {provider: address(77)}, {sessionId: randomUUID()}, {chainId: 1}, {jobId: "2"}]) {
+    await assert.rejects(f.service.authorizeSkip("1", context.sessionId,
+      await owner.signMessage({message: roverSkipAuthorizationMessage({...context, ...change})})), /OWNER_SIGNATURE_REQUIRED/);
+  }
+  const signature = await owner.signMessage({message: roverSkipAuthorizationMessage(context)});
+  await assert.rejects(f.service.authorizeSkip("2", context.sessionId, signature), /SESSION_NOT_FOUND/);
+  await assert.rejects(f.service.authorizeSkip("1", randomUUID(), signature), /SESSION_NOT_FOUND/);
+});
+
+test("record changes between preparation and signature reject the additional approval", async t => {
+  const f = await stoppedFixture(t);
+  const prepared = await f.prepareSkip(), context = prepared.skipApproval!.context;
+  const signature = await owner.signMessage({message: roverSkipAuthorizationMessage(context)});
+  await f.mutate(record => {record.run!.commands[0].speed = 20;});
+  await assert.rejects(f.service.authorizeSkip("1", context.sessionId, signature), /SKIP_APPROVAL_CONTEXT_CHANGED/);
+  await assert.rejects(f.prepareSkip(), /SKIP_APPROVAL_CONTEXT_CHANGED/);
+});
+
+test("expired or no longer funded Jobs reject additional approval", async t => {
+  const f = await stoppedFixture(t);
+  const prepared = await f.prepareSkip(), context = prepared.skipApproval!.context;
+  const signature = await owner.signMessage({message: roverSkipAuthorizationMessage(context)});
+  f.job.budget = 1n;
+  await assert.rejects(f.service.authorizeSkip("1", context.sessionId, signature), /SESSION_CONTEXT_CHANGED/);
+  f.service.deps.fundedJob = async () => {throw Error("JOB_NOT_FUNDED");};
+  await assert.rejects(f.service.authorizeSkip("1", context.sessionId, signature), /JOB_NOT_FUNDED/);
+  f.advance(900);
+  await assert.rejects(f.service.authorizeSkip("1", context.sessionId, signature), /SKIP_APPROVAL_EXPIRED_OR_INVALID/);
 });

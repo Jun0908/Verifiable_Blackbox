@@ -1,8 +1,9 @@
 import "server-only";
 import {randomBytes, randomUUID} from "node:crypto";
 import {verifyMessage, type Address, type Hex} from "viem";
-import {roverAccessMessage, roverAuthorizationMessage, roverHash, type RoverAccess, type RoverOptions,
-  type RoverSessionContext, type RoverSessionRecord} from "@/lib/rover-session";
+import {roverAccessMessage, roverAuthorizationMessage, roverHash, roverOperationRecordHash,
+  roverSkipAuthorizationMessage, roverSkipUnavailableReason, type RoverAccess, type RoverOptions,
+  type RoverSessionContext, type RoverSessionRecord, type RoverSkipContext} from "@/lib/rover-session";
 import {assertJobId, RoverSessionStore} from "./store";
 
 type SessionJob = {id: bigint; client: Address; provider: Address; budget: bigint; expiredAt: bigint; evaluator: Address; hook: Address};
@@ -34,6 +35,76 @@ export async function signatureFor(address: Address, message: string, signature:
 
 export class RoverSessions {
   constructor(readonly deps: SessionDependencies) {}
+  private async validateStoppedSession(session: RoverSessionRecord) {
+    const context = session.context;
+    await signatureFor(context.client, roverAuthorizationMessage(context), session.authorizationSignature);
+    if (context.options.judgmentMode !== "VIDEO") throw Error("VIDEO_SKIP_ALREADY_SELECTED");
+    if (context.expiresAt <= this.deps.now()) throw Error("SESSION_EXPIRED");
+    const job = await this.deps.fundedJob(context.jobId);
+    if (job.expiredAt <= BigInt(this.deps.now())) throw Error("JOB_EXPIRED");
+    if (job.id.toString() !== context.jobId || context.chainId !== this.deps.store.scope.chainId
+      || context.core.toLowerCase() !== this.deps.store.scope.core.toLowerCase()
+      || context.client.toLowerCase() !== job.client.toLowerCase() || context.provider.toLowerCase() !== job.provider.toLowerCase()
+      || context.evaluator.toLowerCase() !== this.deps.evaluator.toLowerCase()
+      || context.evaluator.toLowerCase() !== job.evaluator.toLowerCase() || context.token.toLowerCase() !== this.deps.token.toLowerCase()
+      || context.budget !== job.budget.toString() || context.jobExpiresAt !== job.expiredAt.toString()) throw Error("SESSION_CONTEXT_CHANGED");
+    parseOptions(context.options);
+    if (context.conditionsHash !== roverHash({options: context.options, camera: context.camera, cameraUrl: context.cameraUrl, policyHash: context.policyHash})) throw Error("SESSION_CONTEXT_CHANGED");
+    const reason = roverSkipUnavailableReason(session);
+    if (reason) throw Error(reason);
+  }
+  private skipContext(session: RoverSessionRecord, nonce: Hex, issuedAt: number): RoverSkipContext {
+    const context = session.context;
+    return {version: 1, purpose: "SKIP_VIDEO_AFTER_STOP", chainId: context.chainId, core: context.core,
+      jobId: context.jobId, sessionId: context.sessionId, client: context.client, provider: context.provider,
+      budget: context.budget, sessionContextHash: roverHash(context), operationRecordHash: roverOperationRecordHash(session.run!),
+      nonce, issuedAt, expiresAt: Math.min(issuedAt + 900, context.expiresAt, Number(context.jobExpiresAt))};
+  }
+  private stoppedRecord(sessions: RoverSessionRecord[], jobId: string, sessionId: unknown) {
+    if (typeof sessionId !== "string" || !uuid.test(sessionId)) throw Error("INVALID_SESSION_ID");
+    const record = sessions.find(s => s.context.sessionId === sessionId);
+    if (!record || record.context.jobId !== jobId) throw Error("SESSION_NOT_FOUND");
+    if (record !== sessions.at(-1)) throw Error("SESSION_SUPERSEDED");
+    return record;
+  }
+  async prepareSkip(jobId: unknown, sessionId: unknown, signature: unknown) {
+    assertJobId(jobId);
+    return this.deps.store.update(jobId, async job => {
+      const record = this.stoppedRecord(job.sessions, jobId, sessionId);
+      await signatureFor(record.context.client, roverAuthorizationMessage(record.context), signature);
+      await this.validateStoppedSession(record);
+      if (record.skipApproval) {
+        this.validateSkipContext(record);
+        return record;
+      }
+      record.skipApproval = {context: this.skipContext(record, `0x${randomBytes(32).toString("hex")}`, this.deps.now())};
+      return record;
+    });
+  }
+  private validateSkipContext(record: RoverSessionRecord) {
+    const approval = record.skipApproval;
+    if (!approval) throw Error("SKIP_APPROVAL_NOT_PREPARED");
+    const {nonce, issuedAt, expiresAt} = approval.context;
+    if (!/^0x[0-9a-f]{64}$/i.test(nonce) || !Number.isSafeInteger(issuedAt) || issuedAt > this.deps.now()
+      || issuedAt < record.context.issuedAt || expiresAt <= this.deps.now()) throw Error("SKIP_APPROVAL_EXPIRED_OR_INVALID");
+    if (roverHash(approval.context) !== roverHash(this.skipContext(record, nonce, issuedAt))) throw Error("SKIP_APPROVAL_CONTEXT_CHANGED");
+  }
+  async authorizeSkip(jobId: unknown, sessionId: unknown, signature: unknown) {
+    assertJobId(jobId);
+    return this.deps.store.update(jobId, async job => {
+      const record = this.stoppedRecord(job.sessions, jobId, sessionId);
+      this.validateSkipContext(record);
+      await signatureFor(record.context.client, roverSkipAuthorizationMessage(record.skipApproval!.context), signature);
+      await this.validateStoppedSession(record);
+      if (record.skipApproval!.signature) {
+        await signatureFor(record.context.client, roverSkipAuthorizationMessage(record.skipApproval!.context), record.skipApproval!.signature);
+        return record;
+      }
+      record.skipApproval!.signature = signature as Hex;
+      record.skipApproval!.authorizedAt = new Date(this.deps.now() * 1000).toISOString();
+      return record;
+    });
+  }
   private async access(raw: unknown, signature: unknown, action: RoverAccess["action"]) {
     const input = object(raw);
     keys(input, ["action", "chainId", "core", "jobId", "requestId", "issuedAt", ...(action === "prepare" ? ["options"] : [])]);

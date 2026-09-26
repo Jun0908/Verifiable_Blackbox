@@ -17,6 +17,12 @@ export type RoverSessionRecord = {
   context: RoverSessionContext; phase: "PREPARED" | "AUTHORIZED" | "SUPERSEDED" | "EXPIRED" | "STARTING" | "RECORDING" | "OPERATING" | "STOPPING" | "CAPTURED" | "ERROR";
   authorizationSignature?: Hex; authorizedAt?: string;
   run?: RoverRun; error?: string;
+  skipApproval?: {context: RoverSkipContext; signature?: Hex; authorizedAt?: string};
+};
+export type RoverSkipContext = {
+  version: 1; purpose: "SKIP_VIDEO_AFTER_STOP"; chainId: number; core: Address;
+  jobId: string; sessionId: string; client: Address; provider: Address; budget: string;
+  sessionContextHash: Hex; operationRecordHash: Hex; nonce: Hex; issuedAt: number; expiresAt: number;
 };
 export type RoverRunRequest = {
   sessionId: string; jobId: string; chainId: number; core: Address; judgmentMode: JudgmentMode;
@@ -28,6 +34,7 @@ export type RoverRun = {
   stop: null | {requestedAt: number; confirmed: boolean; confirmedAt?: number; response?: {armed: boolean; motors: boolean; i2c: boolean}};
   recording: {state: string; frames: Array<{index: number; sha256: string; capturedAt: number; phase: string}>; sha256?: string | null; framesHash?: string; bytes?: number; error?: string};
   operationHash?: string; operationStartedAt?: number; operationEndedAt?: number; error?: string;
+  forwardPressed?: boolean | null;
 };
 export function roverRunRequest(context: RoverSessionContext): RoverRunRequest {
   return {sessionId: context.sessionId, jobId: context.jobId, chainId: context.chainId, core: context.core,
@@ -43,6 +50,38 @@ export function canonicalJson(value: unknown): string {
   throw Error("INVALID_CANONICAL_VALUE");
 }
 export const roverHash = (value: unknown) => keccak256(toBytes(canonicalJson(value)));
+
+export function roverSkipUnavailableReason(record: RoverSessionRecord): string | null {
+  const run = record.run;
+  if (!run || !["CAPTURED", "ERROR"].includes(record.phase) || run.phase !== record.phase) return "RUN_NOT_FINISHED";
+  if (run.forwardPressed !== true) return "FORWARD_PRESS_REQUIRED";
+  if (record.context.options.operation !== "FORWARD" || roverHash(run.request) !== roverHash(roverRunRequest(record.context))) return "RUN_CONTEXT_MISMATCH";
+  if (run.phase === "ERROR" && !["RECORDING_INCOMPLETE", "RECORDING_SHUTDOWN_FAILED"].includes(run.error ?? "")) return "RUN_NOT_COMPLETED";
+  if (!Number.isFinite(run.operationStartedAt) || !Number.isFinite(run.operationEndedAt)
+    || run.operationStartedAt! < record.context.issuedAt || run.operationEndedAt! > record.context.expiresAt
+    || run.operationEndedAt! < run.operationStartedAt!) return "RUN_NOT_COMPLETED";
+  const sent = run.commands.filter(event => event.sessionId === record.context.sessionId && event.result === "SENT"
+    && event.deadman && event.y > 0 && event.speed > 0 && Number.isFinite(event.sentAt)
+    && event.sentAt >= run.operationStartedAt! && event.sentAt <= run.operationEndedAt!);
+  if (!sent.length) return "DRIVE_NOT_SENT";
+  if (!run.stop?.confirmed || !Number.isFinite(run.stop.confirmedAt)
+    || run.stop.confirmedAt! < Math.max(run.operationEndedAt!, ...sent.map(event => event.sentAt))) return "STOP_UNCONFIRMED";
+  return null;
+}
+
+export function roverOperationRecordHash(run: RoverRun): Hex {
+  return roverHash({request: run.request, forwardPressed: run.forwardPressed ?? null,
+    commands: run.commands, stop: run.stop, operationStartedAt: run.operationStartedAt ?? null,
+    operationEndedAt: run.operationEndedAt ?? null, bridgeOperationHash: run.operationHash ?? null});
+}
+
+export function roverSkipAuthorizationMessage(context: RoverSkipContext): string {
+  return ["Verifiable Blackbox — Rover video skip approval v1",
+    "VIDEO RECOGNITION IS SKIPPED. I authorize payment for this recorded run even when its video result is INCONCLUSIVE or STILL.",
+    "Payment requires a recorded forward button press, successful forward commands, and confirmed stop. This approval does not start another run or change the video result.",
+    `Amount (base units): ${context.budget}`, `Provider: ${context.provider}`,
+    `Expires at (Unix): ${context.expiresAt}`, canonicalJson(context)].join("\n");
+}
 
 export function roverAccessMessage(access: RoverAccess) {
   return ["Verifiable Blackbox — Rover session access v1",

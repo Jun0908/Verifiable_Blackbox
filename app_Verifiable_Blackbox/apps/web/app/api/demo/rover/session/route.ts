@@ -10,6 +10,8 @@ export async function POST(request: Request) {
     const sessions = roverSessions();
     if (body.action === "prepare") return sessionResponse(await sessions.prepare(body.access, body.signature));
     if (body.action === "authorize") return sessionResponse(await sessions.authorize(body.jobId, body.sessionId, body.signature));
+    if (body.action === "prepare-skip") return sessionResponse(await sessions.prepareSkip(body.jobId, body.sessionId, body.signature));
+    if (body.action === "authorize-skip") return sessionResponse(await sessions.authorizeSkip(body.jobId, body.sessionId, body.signature));
     throw Error("INVALID_SESSION_ACTION");
   } catch (error) {return sessionFailure(error);}
 }

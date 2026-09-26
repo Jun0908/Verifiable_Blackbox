@@ -43,7 +43,7 @@ try {
   await contract(core,parseAbi(['function setHookWhitelist(address,bool)']),'setHookWhitelist',[hook,true]);
   await contract(token,parseAbi(['function transferOwnership(address)']),'transferOwnership',[core]);
   const {erc8183Abi}=await import('../apps/web/lib/contracts.ts');
-  const {roverAccessMessage,ROVER_JOB_DESCRIPTION}=await import('../apps/web/lib/rover-session.ts');
+  const {roverAccessMessage,roverAuthorizationMessage,roverRunRequest,ROVER_JOB_DESCRIPTION}=await import('../apps/web/lib/rover-session.ts');
   const created=await contract(core,erc8183Abi,'createAndFundDemo',[provider.address,evaluator,(await client.getBlock()).timestamp+86400n,ROVER_JOB_DESCRIPTION,hook]);
   const jobId=parseEventLogs({abi:erc8183Abi,logs:created.logs,eventName:'JobCreated'})[0].args.jobId.toString();
   const env={...process.env,NEXT_PUBLIC_LOCAL_DEMO:'true',NEXT_PUBLIC_PRIVY_APP_ID:'',NEXT_PUBLIC_PRIVY_CLIENT_ID:'',NEXT_PUBLIC_CHAIN_ID:'31337',NEXT_PUBLIC_RPC_URL:rpc,DEMO_RPC_URL:rpc,
@@ -64,6 +64,7 @@ try {
   await page.route('**/api/demo/rover/control',route=>route.fulfill({json:{state:'idle',message:'Test',telemetryFresh:false,motorsRunning:false}}));
   await page.route('**/api/demo/rover/camera**',route=>route.fulfill({status:503,json:{error:'CAMERA_UNAVAILABLE'}}));
   await page.addInitScript(({core,owner,jobId,hash})=>{
+    if(localStorage.getItem(`vbb-active-job-v1:31337:${core.toLowerCase()}:${owner.toLowerCase()}`))return;
     localStorage.setItem(`vbb-active-job-v1:31337:${core.toLowerCase()}:${owner.toLowerCase()}`,JSON.stringify({version:3,walletAddress:owner,verified:false,
       job:{jobId,source:'rover',scenario:'success',createTransactionHash:hash,fundTransactionHash:hash}}));
   },{core,owner:owner.address,jobId,hash:created.transactionHash});
@@ -118,8 +119,58 @@ try {
   await writeFile(resolve(temporary,`sessions/31337-${core.toLowerCase()}/${jobId}.json`),'null');
   assert.equal((await(await request('/api/demo/rover/review',{action:'prepare',jobId})).json()).error,'SESSION_RECORD_INVALID');
   assert.equal((await client.readContract({address:core,abi:erc8183Abi,functionName:'getJob',args:[BigInt(jobId)]})).status,1);
+  // A stopped VIDEO fixture exercises the additional approval independently of manual driving.
+  const videoCreated=await contract(core,erc8183Abi,'createAndFundDemo',[provider.address,evaluator,(await client.getBlock()).timestamp+86400n,ROVER_JOB_DESCRIPTION,hook]);
+  const videoJobId=parseEventLogs({abi:erc8183Abi,logs:videoCreated.logs,eventName:'JobCreated'})[0].args.jobId.toString();
+  const videoAccess={...access,jobId:videoJobId,requestId:crypto.randomUUID(),issuedAt:Math.floor(Date.now()/1000),options:{...access.options,judgmentMode:'VIDEO'}};
+  const videoPreparedResponse=await request('/api/demo/rover/session',{action:'prepare',access:videoAccess,signature:await owner.signMessage({message:roverAccessMessage(videoAccess)})});
+  assert.equal(videoPreparedResponse.status,200);
+  const videoContext=(await videoPreparedResponse.json()).record.context;
+  const videoSignature=await owner.signMessage({message:roverAuthorizationMessage(videoContext)});
+  assert.equal((await request('/api/demo/rover/session',{action:'authorize',jobId:videoJobId,sessionId:videoContext.sessionId,signature:videoSignature})).status,200);
+  const videoPath=resolve(temporary,`sessions/31337-${core.toLowerCase()}/${videoJobId}.json`);
+  const videoStored=JSON.parse(await readFile(videoPath,'utf8')),videoRecord=videoStored.sessions.at(-1);
+  const time=Math.max(videoContext.issuedAt,Date.now()/1000);
+  videoRecord.phase='CAPTURED';
+  videoRecord.run={version:1,request:roverRunRequest(videoContext),phase:'CAPTURED',forwardPressed:false,
+    operationStartedAt:time,operationEndedAt:time,operationHash:'ab'.repeat(32),
+    commands:[{sessionId:videoContext.sessionId,sequence:1,sentAt:time,x:0,y:1,z:0,speed:35,deadman:true,result:'SENT'}],
+    stop:{requestedAt:time,confirmed:true,confirmedAt:time},recording:{state:'ERROR',frames:[],error:'RECORDING_UNAVAILABLE'}};
+  videoRecord.videoJudgment='INCONCLUSIVE';
+  await writeFile(videoPath,JSON.stringify(videoStored));
+  await page.getByRole('button',{name:'EN',exact:true}).click();
+  await page.evaluate(({core,owner,jobId,hash})=>{
+    localStorage.setItem(`vbb-active-job-v1:31337:${core.toLowerCase()}:${owner.toLowerCase()}`,JSON.stringify({version:3,walletAddress:owner,verified:false,
+      job:{jobId,source:'rover',scenario:'success',createTransactionHash:hash,fundTransactionHash:hash}}));
+  },{core,owner:owner.address,jobId:videoJobId,hash:videoCreated.transactionHash});
+  await page.goto(base+`/rover?job=${videoJobId}`,{waitUntil:'domcontentloaded'});
+  await page.getByRole('button',{name:'Sign in',exact:true}).first().click();
+  await page.getByRole('button',{name:'Load saved session',exact:true}).click();
+  await page.getByText('Operation records saved. Stop confirmed.',{exact:true}).waitFor();
+  await settings.focus();await page.keyboard.down('Space');await page.waitForTimeout(1300);await page.keyboard.up('Space');
+  assert.equal(await skip.isDisabled(),true);
+  assert.equal((await request('/api/demo/rover/session',{action:'prepare-skip',jobId:videoJobId,sessionId:videoContext.sessionId,signature:videoSignature})).status,409);
+  videoRecord.run.forwardPressed=true;
+  await writeFile(videoPath,JSON.stringify(videoStored));
+  await page.reload({waitUntil:'domcontentloaded'});
+  await page.getByRole('button',{name:'Sign in',exact:true}).first().click();
+  await page.getByRole('button',{name:'Load saved session',exact:true}).click();
+  await page.getByText('Operation records saved. Stop confirmed.',{exact:true}).waitFor();
+  await settings.focus();await page.keyboard.down('Space');await page.waitForTimeout(1300);await page.keyboard.up('Space');
+  assert.equal(await skip.isChecked(),false);await skip.check();
+  const approvalButton=page.getByRole('button',{name:'Sign video skip approval',exact:true});
+  await approvalButton.click();
+  await page.getByText('Video skip approval saved for this operation record. Payment is not completed by this approval alone.',{exact:true}).waitFor();
+  const approvedRecord=JSON.parse(await readFile(videoPath,'utf8')).sessions.at(-1);
+  assert.ok(approvedRecord.skipApproval.signature);
+  assert.deepEqual(approvedRecord.context,videoContext);
+  assert.deepEqual(approvedRecord.run,videoRecord.run);
+  assert.equal(approvedRecord.authorizationSignature,videoSignature);
+  assert.equal(approvedRecord.videoJudgment,'INCONCLUSIVE');
+  await page.screenshot({path:resolve(root,'artifacts/rover-session/skip-approval.png'),fullPage:true});
+  assert.equal((await client.readContract({address:core,abi:erc8183Abi,functionName:'getJob',args:[BigInt(videoJobId)]})).status,1);
   assert.deepEqual(errors,[]);
-  console.log(JSON.stringify({ok:true,checks:['owner signatures','hidden settings keyboard and pointer','default reset','persisted authorization','mock Bridge drive and confirmed stop','recorded commands','idempotent start','mobile Japanese','origin and owner rejection','session payment gate','no physical robot movement or payment']}));
+  console.log(JSON.stringify({ok:true,checks:['owner signatures','hidden settings keyboard and pointer','default reset','persisted authorization','mock Bridge drive and confirmed stop','recorded commands','idempotent start','mobile Japanese','origin and owner rejection','session payment gate','stopped VIDEO fixture additional signature','missing forward press rejection','preserved INCONCLUSIVE and original approval','no physical robot movement or payment']}));
 } catch(error) {
   for(const child of children) console.error(child.log());
   throw error;
