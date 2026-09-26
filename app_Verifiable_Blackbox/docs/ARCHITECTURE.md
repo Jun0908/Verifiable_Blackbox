@@ -28,7 +28,7 @@ Verifiable Blackboxは、ロボットの仕事に関する記録を検証し、E
 | ENS | 公開鍵レコードの読取と署名照合、領収書への登録情報表示 |
 | 支払台帳・月次集計 | `/ledger`でMultiBaasの支払実績、根拠照合、月次サンプル集計、CSV出力を扱う |
 | StegaVAR | `/stegavar`で映像比較・復元映像の同期再生・CPU再解析を提供する。Python処理は別サービスとする。詳細は第10節 |
-| 動画判定による報酬支払い | 動画認識を標準とし、発表者用の隠し設定でスキップ可能。承認した判定モードの条件を満たすとPhala検証・支払いへ進む。第11節・T25〜T33で実装する |
+| 動画判定による報酬支払い | 動画認識を標準とし、発表者用の隠し設定でスキップ可能。承認した判定モードの条件を満たすとPhala検証・支払いへ進む。第11節・T25〜T32で実装する |
 | 外部デモ | Worldによる認証・開示は独立したアプリケーションとして扱う |
 
 PhalaはDemoEvidenceのデータとChain上のJobとの整合性を検証する。支払いには利用者の署名付き承認を必要とする。現在の決済経路に動画判定は含まれない。第11節では、走行指令・停止の記録に加え、承認した判定モードに応じて動画判定をアプリ側の条件にする。Phalaによる実移動・荷物運搬・映像の意味の判定は対象外とする。
@@ -203,7 +203,7 @@ APIはNext.jsのRoute Handlersで実装している。各実装は [API Route Ha
 | `/api/demo/verify`、`/settle` | サンプル検証・決済の各段階 |
 | `/api/demo/attestation` | Serverがfresh nonceを発行しPhalaへ問い合わせ |
 | `/api/demo/rover/review` | GET:進捗、POST:`prepare`／`verify-and-pay` |
-| `/api/demo/rover/complete` | GET:Funded Job情報。POST:現在は409 `PHYSICAL_MOVEMENT_NOT_VERIFIED`。第11節・T30でServerのセッション照合を必須とする条件付き受付へ変更する |
+| `/api/demo/rover/complete` | GET:Funded Job情報。POST:現在は409 `PHYSICAL_MOVEMENT_NOT_VERIFIED`。第11節・T29でServerのセッション照合を必須とする条件付き受付へ変更する |
 | `/api/demo/rover/control` | GET:状態。POST:`activate/drive/release/stop/gripper` |
 | `/api/demo/rover/camera` | GET:設定／JPEG、POST:ON/OFF／接続先設定 |
 
@@ -462,11 +462,11 @@ World認証による開示を追加する場合は、保護対象の映像をpub
 
 ## 11. 動画判定によるRoverの報酬支払い
 
-本節はT25〜T33で追加する設計とする。Phalaのコード・検証policy・接続設定とContractは変更しない。支払いAPIはT30の対象モードの条件付き受付と拒否試験が揃った経路から有効化し、準備できていないモードは409を維持する。
+本節はT25〜T32で追加する設計とする。Phalaのコード・検証policy・接続設定とContractは変更しない。支払いAPIはT29の対象モードの条件付き受付と拒否試験が揃った経路から有効化し、準備できていないモードは409を維持する。
 
-T26ではセッション準備・条件付き承認・所有者署名による状態取得と発表者用の隠し設定を実装した。T27では承認後の開始ボタンから前進・静止を実行し、Bridgeの操作記録・録画・停止確認をCAPTUREDまで保存する。動画解析・条件付き決済はT28以降で接続する。新規Rover Jobのdescriptionは`vbb://rover/session-v1`とし、保存データがなくてもセッション検査が必要なJobと判別する。Provider提出・承認・検証・決済の入口は、この種別または保存済みRoverセッションを検出すると専用の決済経路を要求する。
+T25ではセッション準備・条件付き承認・所有者署名による状態取得と発表者用の隠し設定を実装した。T26では承認後の開始ボタンから前進・静止を実行し、Bridgeの操作記録・録画・停止確認をCAPTUREDまで保存する。動画解析・条件付き決済はT27以降で接続する。新規Rover Jobのdescriptionは`vbb://rover/session-v1`とし、保存データがなくてもセッション検査が必要なJobと判別する。Provider提出・承認・検証・決済の入口は、この種別または保存済みRoverセッションを検出すると専用の決済経路を要求する。
 
-最優先の完了条件は、同じ実行について「前ボタンを押した／押していない」と「今回のRaw動画に対するStegaVARの3択」が画面に表示されることとする。前ボタンのイベント記録、Raw動画の送信・3択表示は追加実装が必要。停止後のスキップ追加承認はT26で実装し、支払いとの接続はT30で行う。T27のCAPTUREDだけではこの完了条件を満たさない。
+最優先の完了条件は、同じ実行について「前ボタンを押した／押していない」と「今回のRaw動画に対するStegaVARの3択」が画面に表示されることとする。前ボタンのイベント記録、Raw動画の送信・3択表示は追加実装が必要。停止後のスキップ追加承認はT25で実装し、支払いとの接続はT29で行う。T26のCAPTUREDだけではこの完了条件を満たさない。
 
 ### 目的と担当範囲
 
@@ -490,7 +490,7 @@ T26ではセッション準備・条件付き承認・所有者署名による�
 
 判定後も隠し設定から「動画認識をスキップ」を選べる。停止確認済み・未決済の同じJobとsessionIdに対し、操作記録のハッシュ・スキップ条件・受取先・金額・有効期限を含む追加承認へ所有者が署名する。Serverが保存済みの前ボタン・前進指令・停止記録を照合し、撮り直しや再走行をせずに支払いへ進む。開始時の署名内容は保持し、追加承認を別レコードとして保存する。
 
-T26の追加承認は`skipApproval`として保存する。`prepare-skip`は開始時の承認署名と停止済み記録を確認し、`authorize-skip`は追加署名を検証する。対象は最後に作成したセッションとし、期限は開始時の承認期限・Job期限を超えない。操作記録のハッシュには前ボタンの有無・送信記録・停止記録・操作時刻を含める。前ボタンの記録がない・false・未確定の場合は追加承認を拒否する。この記録を実際の押下から生成する処理はT27で接続する。
+T25の追加承認は`skipApproval`として保存する。`prepare-skip`は開始時の承認署名と停止済み記録を確認し、`authorize-skip`は追加署名を検証する。対象は最後に作成したセッションとし、期限は開始時の承認期限・Job期限を超えない。操作記録のハッシュには前ボタンの有無・送信記録・停止記録・操作時刻を含める。前ボタンの記録がない・false・未確定の場合は追加承認を拒否する。この記録を実際の押下から生成する処理はT26で接続する。
 
 承認内容、実行詳細、証拠パッケージにはスキップした事実を残す。「判定できていない」の表示を維持し、MOVINGに置き換えない。解析結果と支払い可否を分け、自動でスキップを有効にしない。
 
@@ -558,7 +558,7 @@ VIDEOではServer管理の撮影処理で、前ボタンを押す前から停止
 
 録画を今回のsessionIdと結び付け、Server管理の非公開領域へ保管する。任意のファイルパスや別セッションの動画を支払い用録画として登録するAPIは用意しない。生の録画、解析用フレーム、操作記録、実行ログはGit管理から除外する。閲覧はJob所有者を確認するAPI経由とする。
 
-T27のBridgeは`M5stack_RoverC/rover-python/.rover-sessions/<sessionId>/`へ`run.json`、JPEGフレーム、`recording.mjpeg`を保存する。保存先はServer専用の`ROVER_JOB_RECORDING_DIR`で指定できる。VIDEOでは操作前後それぞれ0.6秒を取得し、各区間と操作中に最低3フレームを要求する。フレームは約10fpsで受信時刻の重複を除外して取得し、録画・フレーム列のSHA-256を保存する。準備時のカメラ接続先を署名条件とpolicyHashへ含め、開始時とBridgeの占有取得時に照合する。録画用スレッドと制御処理を分け、SKIP_VIDEOではカメラがなくても開始できる。
+T26のBridgeは`M5stack_RoverC/rover-python/.rover-sessions/<sessionId>/`へ`run.json`、JPEGフレーム、`recording.mjpeg`を保存する。保存先はServer専用の`ROVER_JOB_RECORDING_DIR`で指定できる。VIDEOでは操作前後それぞれ0.6秒を取得し、各区間と操作中に最低3フレームを要求する。フレームは約10fpsで受信時刻の重複を除外して取得し、録画・フレーム列のSHA-256を保存する。準備時のカメラ接続先を署名条件とpolicyHashへ含め、開始時とBridgeの占有取得時に照合する。録画用スレッドと制御処理を分け、SKIP_VIDEOではカメラがなくても開始できる。
 
 追加実装では録画の可否と動作判定をStegaVAR側の3択へ集約する。操作前後0.6秒や区間別3フレームを独立した決済条件にせず、取得できたRaw動画を送り、解析できなければINCONCLUSIVEを返す。固定の長さ・枚数・ROIの細かい調整をAPI接続の開始条件にしない。
 
@@ -646,9 +646,9 @@ Bridgeの操作記録・撮影処理はRover Python側へ追加する。既存�
 
 `session`は対象Jobの所有者と状態を確認して実行条件を準備する。`start`は署名を検証して開始し、同じ要求の再送で再走行しない。`status`と録画閲覧も所有者を確認する。変更要求には同一Origin等の既存API保護を適用する。
 
-T26の`session` POSTは`prepare`と`authorize`を受け付ける。prepareはJob・判定モード・操作条件・要求ID・発行時刻に対する所有者署名を確認し、authorizeはServer発行のsessionId・nonceを含む条件付き承認の署名を保存する。`session/status`はPOSTで所有者のアクセス署名を受け取り、保存済みの状態を返す。アクセス署名は5分、条件付き承認は最大15分かJob期限の早い方まで有効。同じprepare要求の再送は同じセッションを返し、使用済み承認は再消費しない。状態は`ROVER_SESSION_DIR`または`apps/web/.rover-sessions/`にJob単位で排他・atomic保存する。
+T25の`session` POSTは`prepare`と`authorize`を受け付ける。prepareはJob・判定モード・操作条件・要求ID・発行時刻に対する所有者署名を確認し、authorizeはServer発行のsessionId・nonceを含む条件付き承認の署名を保存する。`session/status`はPOSTで所有者のアクセス署名を受け取り、保存済みの状態を返す。アクセス署名は5分、条件付き承認は最大15分かJob期限の早い方まで有効。同じprepare要求の再送は同じセッションを返し、使用済み承認は再消費しない。状態は`ROVER_SESSION_DIR`または`apps/web/.rover-sessions/`にJob単位で排他・atomic保存する。
 
-T27の`session/start` POSTはjobId・sessionId・条件付き承認署名と`start`／`stop`を受け付ける。開始前にSTARTINGを保存し、Bridgeの`/jobs/start`へ固定した条件を送る。Bridgeは同じsessionIdの再送に保存済み状態を返し、再走行しない。`session/status`は条件付き承認署名による進捗取得にも対応する。ブラウザが閉じてもBridgeの作業スレッドが停止まで進め、Webが戻った際に`/jobs/status`から記録を取得する。Bridge再起動で中断された記録はERRORとする。緊急停止は`/jobs/stop`へ接続する。T27のCAPTUREDは操作・録画記録の取得完了であり、動画認識や支払いの成功を示さない。
+T26の`session/start` POSTはjobId・sessionId・条件付き承認署名と`start`／`stop`を受け付ける。開始前にSTARTINGを保存し、Bridgeの`/jobs/start`へ固定した条件を送る。Bridgeは同じsessionIdの再送に保存済み状態を返し、再走行しない。`session/status`は条件付き承認署名による進捗取得にも対応する。ブラウザが閉じてもBridgeの作業スレッドが停止まで進め、Webが戻った際に`/jobs/status`から記録を取得する。Bridge再起動で中断された記録はERRORとする。緊急停止は`/jobs/stop`へ接続する。T26のCAPTUREDは操作・録画記録の取得完了であり、動画認識や支払いの成功を示さない。
 
 追加APIでは、Job・sessionIdに紐付く前ボタンの押下・解放、Raw動画のStegaVAR送信、停止確認後の追加スキップ承認を扱う。操作の有無と3択表示は支払いAPIの完成を待たずに提供する。
 
