@@ -5,6 +5,7 @@ import type {ActiveRobotJob} from "@/lib/job-flow";
 import type {RoverSessionRecord} from "@/lib/rover-session";
 import {useDemoWallet} from "./wallet-context";
 import {useLanguage} from "./language";
+import {WorldDisclosure} from "./world-disclosure";
 import {JobProgress} from "./job-progress";
 import {RoverRecordingPanel} from "./rover-recording-panel";
 import "./rover-session.css";
@@ -163,6 +164,7 @@ export function RoverButtonPanel({job}: {job: ActiveRobotJob}) {
     {settings && !terminal && <label className="rover-presenter-settings"><input type="checkbox" checked={skip} disabled={preparing || starting || running}
       onChange={event => {setSkip(event.target.checked); void prepare(event.target.checked);}} />{t("Skip video recognition", "動画認識をスキップ")}</label>}
     {record && terminal && <RoverRecordingPanel record={record} />}
+    {record && terminal && <WorldDisclosure key={record.context.sessionId} jobId={record.context.jobId} sessionId={record.context.sessionId} />}
     {record?.error && <p role="status">{t("The robot connection or control reported an error. The button record is saved.", "機体の接続・操作でエラーが発生しました。ボタンの記録は保存しています。")}: {record.error}</p>}
     {paying && <p role="status">{t("Processing payment…", "支払い処理中です…")}</p>}
     {analyzing && <p role="status">{t("Analyzing the Raw recording…", "Raw動画を解析しています…")}</p>}

@@ -4,6 +4,7 @@ import {loadDemoState, storeDemoState} from "@/lib/active-job";
 
 import {useCallback, useEffect, useMemo, useState} from "react";
 import {useDemoWallet} from "./wallet-context";
+import {WorldDisclosure} from "./world-disclosure";
 import Link from "next/link";
 import {JobProgress} from "./job-progress";
 import {DemoReview} from "./demo-review";
@@ -560,6 +561,7 @@ export function DemoDashboard() {
         <div><dt>{t("Attestation", "実行環境の証明")}</dt><dd>{attestationPath ? <a href={attestationPath} target="_blank" rel="noreferrer">{t("View report", "レポートを見る")} ↗</a> : "—"}</dd></div>
         <div><dt>{t("Job transaction", "仕事の作成取引")}</dt><dd>{explorerLink(job?.createTransactionHash) ? <a href={explorerLink(job?.createTransactionHash)} target="_blank" rel="noreferrer">{short(job?.createTransactionHash)} ↗</a> : <span title={job?.createTransactionHash}>{short(job?.createTransactionHash,10)}</span>}</dd></div>
       </dl>
+      {job?.source === "rover" && <WorldDisclosure key={job.jobId.toString()} jobId={job.jobId.toString()} />}
       <details className="sample-tools"><summary>{t("Verification details", "検証の詳細")}</summary><dl className="proof-list">
         <div><dt>{t("Robot ID in evidence", "証拠内のロボットID")}</dt><dd title={robotId}>{robotId ?? "—"}</dd></div>
         {showRegisteredRobot && <>

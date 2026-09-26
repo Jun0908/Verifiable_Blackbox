@@ -14,6 +14,7 @@ const owner=privateKeyToAccount('0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5
 const provider=privateKeyToAccount(toHex(0xb0bn,{size:32}));
 const client=createPublicClient({chain,transport:http(rpc,{retryCount:0}),pollingInterval:50});
 const wallet=createWalletClient({account:owner,chain,transport:http(rpc)});
+const worldCheck=process.argv.includes('--world');
 const children=[];let temporary,browser;
 const generatedFiles=new Map();
 const launch=(cmd,args,options={})=>{
@@ -56,13 +57,20 @@ try {
     DEMO_PROVIDER_ADDRESS:provider.address,
     DEMO_RELAYER_ADDRESS:owner.address,
     DEMO_TEE_SIGNER_ADDRESS:tee.address,DEMO_VERIFIER_MODE:'MOCK_TEE',VBB_BRIDGE_URL:bridgeBase,VBB_BRIDGE_TOKEN:bridgeToken};
+  if(worldCheck) {
+    env.WORLD_SERVICE_URL='http://127.0.0.1:8798';env.WORLD_PUBLIC_URL=env.WORLD_SERVICE_URL;env.WORLD_INTERNAL_TOKEN='public-world-browser-internal-token';
+    launch(process.execPath,[resolve(root,'services/world-idp/server.mjs')],{cwd:resolve(root,'services/world-idp'),env:{...process.env,
+      MODE:'rehearsal',BASE_URL:env.WORLD_PUBLIC_URL,PORT:'8798',WORLD_INTERNAL_TOKEN:env.WORLD_INTERNAL_TOKEN,
+      OPERATOR_CODE:'public-world-browser-operator-code',WORLD_APPROVER_OWNERS:owner.address,APP_RETURN_URL:base}});
+    await waitFor(async()=>assert.equal((await fetch(env.WORLD_PUBLIC_URL+'/api/session')).status,200));
+  }
   // These public test keys are used only by the isolated Anvil chain.
   env.DEMO_PROVIDER_PRIVATE_KEY=toHex(0xb0bn,{size:32});
   env.DEMO_TEE_PRIVATE_KEY=toHex(0xa11cen,{size:32});
   env.DEMO_RELAYER_PRIVATE_KEY='0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
   for(const file of ['tsconfig.json','next-env.d.ts']) generatedFiles.set(file,await readFile(resolve(web,file),'utf8'));
-  launch(process.execPath,[resolve(root,'node_modules/next/dist/bin/next'),'dev','--hostname','127.0.0.1','--port','3017'],{cwd:web,env});
-  await waitFor(async()=>{const response=await fetch(base+'/api/demo/config');assert.equal(response.status,200);assert.equal((await response.json()).chainId,31337);});
+  launch(process.execPath,[resolve(root,'node_modules/next/dist/bin/next'),'dev',...(worldCheck?['--webpack']:[]),'--hostname','127.0.0.1','--port','3017'],{cwd:web,env});
+  await waitFor(async()=>{const response=await fetch(base+'/api/demo/config',{signal:AbortSignal.timeout(15000)});assert.equal(response.status,200);assert.equal((await response.json()).chainId,31337);});
   browser=await chromium.launch({headless:true,...(process.platform==='win32'?{channel:'msedge'}:{})});
   const page=await browser.newPage({viewport:{width:1440,height:1050}});page.setDefaultTimeout(60000);
   const errors=[];page.on('pageerror',error=>errors.push(error.message));
@@ -101,6 +109,12 @@ try {
   assert.equal(first.authorizationSignature,undefined);
   assert.equal(first.analysis.execution,'ANALYZED');
   assert.equal(first.analysis.recordingSha256,first.run.recording.sha256);
+  if(worldCheck) {
+    const {checkWorldDisclosure}=await import('./world-browser-checks.mjs');
+    await checkWorldDisclosure({browser,page,root,jobId,rawSha256:first.run.recording.sha256});
+    assert.equal((await request('/api/demo/world/disclosure',{jobId,owner:provider.address})).status,409);
+    assert.equal((await request('/api/demo/world/disclosure',{jobId,sessionId:'00000000-0000-4000-8000-000000000000'})).status,409);
+  }
   const blockBefore=await client.getBlockNumber({cacheTime:0});
   assert.equal((await request('/api/demo/rover/complete',credentials(first))).status,200);
   assert.equal(await client.getBlockNumber({cacheTime:0}),blockBefore);

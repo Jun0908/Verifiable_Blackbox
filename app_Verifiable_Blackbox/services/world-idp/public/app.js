@@ -6,6 +6,7 @@ let session, current, busy = false, frameBusy = false, frameIndex = 0, mediaEpoc
 const storageKey = `disclosure-request:${assetId || ''}`;
 let requestId = approverId || sessionStorage.getItem(storageKey);
 const stateName = value => ({pending:t('Awaiting approval','承認待ち'),approved:t('Access granted','閲覧可能'),expired:t('Expired','期限切れ'),denied:t('Denied','開示しない'),cancelled:t('Cancelled','取消済み'),revoked:t('Revoked','閲覧終了')})[value] || t('Private','非公開');
+const eventName = value => ({requested:t('Access requested','開示を依頼'),world_started:t('World verification started','World認証を開始'),world_verified:t('World result verified','Worldの応答を検証'),rehearsal_approved:t('Rehearsal approved','リハーサルで承認'),access_granted:t('Viewing permission granted','閲覧を許可'),viewed:t('Footage delivered','映像を配信'),denied:t('Access denied','開示を拒否'),cancelled:t('Request cancelled','依頼を取消'),revoked:t('Permission revoked','閲覧許可を取消'),world_incomplete:t('World verification incomplete','World認証が未完了')})[value] || value;
 function labels() {
   document.documentElement.lang = lang;
   const text = {
@@ -52,7 +53,7 @@ function render() {
   if(current) {
     const link=new URL(`/?approve=${current.id}&lang=${lang}`,location.origin).href;
     $('approval-link').href=link; $('approval-url').value=link;
-    $('events').replaceChildren(...current.events.map(event=>{const li=document.createElement('li');li.textContent=`${event.name} · ${new Date(event.at).toLocaleTimeString(lang)}`;return li;}));
+    $('events').replaceChildren(...current.events.map(event=>{const li=document.createElement('li');li.textContent=`${eventName(event.name)} · ${new Date(event.at).toLocaleTimeString(lang)}`;return li;}));
   }
   if(!approved || approverId) lockVideo();
 }
