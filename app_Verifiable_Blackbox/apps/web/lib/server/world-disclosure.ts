@@ -30,7 +30,7 @@ export async function registerWorldRecording(request: Request, body: Record<stri
   const bytes = await recordedBytes(record);
   let response: Response;
   try {response = await fetch(new URL("/internal/assets", base), {method: "POST", headers: {
-    Authorization: `Bearer ${token}`, "Content-Type": "application/json", Host: publicBase.host},
+    Authorization: `Bearer ${token}`, "Content-Type": "application/json"},
     body: JSON.stringify({chainId: deployment.chainId, core: deployment.erc8183, jobId: body.jobId,
       sessionId: record.context.sessionId, owner: job.client, rawSha256: record.run.recording.sha256,
       rawBase64: bytes.toString("base64"), frames: record.run.recording.frames.map(frame => ({sha256: frame.sha256, capturedAt: frame.capturedAt})),

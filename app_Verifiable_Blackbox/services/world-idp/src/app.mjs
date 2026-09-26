@@ -49,7 +49,6 @@ export function createApp({ root, base, mode, operatorCode, clip, bytes, provide
     const send = (code, data) => { res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8' }); res.end(JSON.stringify(data)); };
     const redirect = url => { res.writeHead(303, { Location: url }); res.end(); };
     try {
-      if (req.headers.host !== new URL(base).host) throw new HttpError(403, 'Open the configured BASE_URL.');
       const url = new URL(req.url, base);
       if (url.pathname === '/internal/assets' && req.method === 'POST') {
         if (!internalToken || req.headers.origin || !equal(req.headers.authorization || '', `Bearer ${internalToken}`)) throw new HttpError(403, 'INTERNAL_AUTH_REQUIRED');
@@ -66,6 +65,7 @@ export function createApp({ root, base, mode, operatorCode, clip, bytes, provide
         }
         return send(201, {assetId: asset.clip.assetId, sha256: asset.clip.sha256, invitationUrl: `${base}/?asset=${asset.clip.assetId}`});
       }
+      if (req.headers.host !== new URL(base).host) throw new HttpError(403, 'Open the configured BASE_URL.');
       if (!['GET', 'HEAD', 'POST'].includes(req.method)) throw new HttpError(405, 'Method not allowed');
       const cookies = Object.fromEntries((req.headers.cookie || '').split(';').map(s => s.trim().split('=')));
       // Bound memory and discard expired browser sessions / authorization transactions.

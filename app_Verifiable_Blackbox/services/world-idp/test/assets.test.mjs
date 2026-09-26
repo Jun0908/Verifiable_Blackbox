@@ -49,3 +49,14 @@ test('registered assets require internal authentication, scoped approver and vie
   await approver(`/api/requests/${next.id}/revoke`,{});assert.equal((await viewer(`/media/${next.id}/frame/0`)).status,403);
   app=createApp(options);assert.equal((await viewer(`/media/${request.id}`)).status,404);
 });
+test('loopback registration supports a distinct public HTTPS origin without weakening browser origin checks',async t=>{
+  const app=createApp({root:fileURLToPath(new URL('../',import.meta.url)),base:'https://world.example',mode:'world',
+    operatorCode:'operator-code-for-tests-only',internalToken,allowedOwners:[owner]});
+  app.listen(0,'127.0.0.1');await once(app,'listening');t.after(()=>new Promise(resolve=>{app.close(resolve);app.closeAllConnections();}));
+  const base=`http://127.0.0.1:${app.address().port}`;
+  const headers={Authorization:`Bearer ${internalToken}`};
+  const response=await fetch(base+'/internal/assets',{method:'POST',headers,body:JSON.stringify(input())});
+  assert.equal(response.status,201);assert.match((await response.json()).invitationUrl,/^https:\/\/world\.example\/\?asset=/);
+  assert.equal((await fetch(base+'/api/session')).status,403);
+  assert.equal((await fetch(base+'/internal/assets',{method:'POST',headers:{...headers,Origin:'https://world.example'},body:JSON.stringify(input())})).status,403);
+});
