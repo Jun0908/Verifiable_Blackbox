@@ -22,3 +22,5 @@
 .stg-analysis a {color:var(--mint);}
 .stg-shell .header-tools {flex-wrap:wrap;}
 @media(max-width:650px){.stg-viewers.revealed{grid-template-columns:1fr;}.stg-reveal{margin-left:0;}.stg-player,.stg-analysis{padding:.8rem;}.stg-shell .topbar{flex-wrap:wrap;gap:1rem;}.stg-selectors{gap:.7rem;}}
+
+.stg-error {color:var(--danger);line-height:1.6;}
