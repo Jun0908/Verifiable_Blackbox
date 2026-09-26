@@ -26,7 +26,7 @@
 
 台帳追加の順番は`T13 → T14 → T15 → T16 → T17`。機体の有人確認とは独立して進め、T17でアプリ全体への影響を確認する。
 
-StegaVAR追加の順番は`T18 → T19 → T20 → T21 → T22 → T23 → T24`。T18のPythonサービスとデータ配置を完了し、T19〜T24で、映像表示と再解析を対象にする。T21はT18・T19の完了後、T20とは独立して進められる。
+StegaVAR追加の順番は`T18 → T19 → T20 → T21 → T22 → T23 → T24`。T18〜T24のPythonサービス、公開データ、映像比較・再解析、起動統合と検証を完了。T21はT18・T19の完了後、T20とは独立して進められる。
 
 ## T01 — 再現可能な開発環境
 
@@ -333,16 +333,34 @@ node scripts/test-ledger-browser.mjs
 
 依存: T19〜T23。
 
-- [ ] 両ケースで再生、比較、Reveal、シークを確認する。
-- [ ] 日英切替と画面幅に応じた表示を確認する。
-- [ ] 実Pythonサービスへの再解析を確認する。
-- [ ] 不正ID、ハッシュ不一致、解析中、未起動、タイムアウト時の動作を確認する。
-- [ ] 解析中のケース切替で結果が混在しないことを確認する。
-- [ ] 共通ナビゲーションとWallet状態の維持を確認する。
-- [ ] StegaVARの操作から決済処理が呼ばれないことを確認する。
-- [ ] Webの型チェックとビルドを実行する。
+- [x] 両ケースで再生、比較、Reveal、シークを確認する。
+- [x] 日英切替と画面幅に応じた表示を確認する。
+- [x] 実Pythonサービスへの再解析を確認する。
+- [x] 不正ID、ハッシュ不一致、解析中、未起動、タイムアウト時の動作を確認する。
+- [x] 解析中のケース切替で結果が混在しないことを確認する。
+- [x] 共通ナビゲーションとWallet状態の維持を確認する。
+- [x] StegaVARの操作から決済処理が呼ばれないことを確認する。
+- [x] Webの型チェックとビルドを実行する。
 
 完了条件: 映像表示と再解析をアプリ内で利用でき、解析サービスの障害時も閲覧を継続できる。
+
+### StegaVARの確認結果
+
+- 動作／静止 × surf／hike／campの6組・960フレーム、manifest、保存済み結果の整合性を確認。
+- Pythonサービス7件、Next.js Adapter 5件の試験で入力・ハッシュ・Origin・同時解析・障害応答を確認。
+- ブラウザから6組を実Pythonで再解析し、比較映像と復元映像のシーク位置を画素比較で確認。
+- 解析中、503、タイムアウト、入力不一致、解析失敗、ケース切替時の応答照合と結果保持を確認。
+- 日英・390px幅、共通ナビゲーション、Wallet iframeの維持、決済APIの呼出しが発生しないことを確認。
+- 起動コマンドによるPythonの起動・終了、起動済みWebへの接続、Python未導入時の映像閲覧を確認。
+- `npm run typecheck:web`と`npm run build:web`が成功。
+
+```powershell
+services/stegavar/.venv/Scripts/python.exe -m unittest discover -s services/stegavar/tests -v
+services/stegavar/.venv/Scripts/python.exe services/stegavar/scripts/publish_data.py --check
+node --import ./scripts/register-ts.mjs --experimental-transform-types --test scripts/test-stegavar-api.test.ts
+npm run demo:stegavar
+node scripts/test-stegavar-browser.mjs
+```
 
 ## 将来の拡張
 

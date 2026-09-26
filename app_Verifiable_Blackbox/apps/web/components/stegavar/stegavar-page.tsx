@@ -29,8 +29,8 @@ export function StegavarPage() {
     {catalog&&selected&&scene&&<>
       <section className="stg-selectors"><div><h2>{t("Rover footage","Roverの映像")}</h2><div className="stg-toolbar" role="group" aria-label={t("Rover case","Roverケース")}>{catalog.cases.map(row=><button key={row.id} className={caseId===row.id?"":"secondary"} aria-pressed={caseId===row.id} onClick={()=>setCaseId(row.id)}>{t(row.titleEn,row.titleJa)}</button>)}</div></div>
         <div><h2>{t("Holiday cover","バカンスのカバー")}</h2><div className="stg-toolbar" role="group" aria-label={t("Cover selection","カバー選択")}>{selected.scenes.map(row=><button key={row.id} className={sceneId===row.id?"":"secondary"} aria-pressed={sceneId===row.id} onClick={()=>setSceneId(row.id)}>{t(row.titleEn,row.titleJa)}</button>)}</div></div></section>
-      <FramePlayer key={`${caseId}/${sceneId}`} scene={scene}/>
-      <AnalysisPanel key={`${caseId}/${sceneId}`} scene={scene}/>
+      <FramePlayer key={`player/${caseId}/${sceneId}`} scene={scene}/>
+      <AnalysisPanel key={`analysis/${caseId}/${sceneId}`} scene={scene}/>
     </>}
   </main>;
 }
