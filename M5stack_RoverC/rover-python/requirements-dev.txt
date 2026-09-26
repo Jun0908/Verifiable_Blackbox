@@ -1,2 +1,3 @@
 -r requirements.txt
 platformio==6.1.19
+ziglang==0.14.1

@@ -38,11 +38,11 @@
 
 依存: T01。
 
-- [ ] M5StickC Plus2、I2C `0x38`、4輪モーター、S1／S2サーボを初期化し、起動時ゼロ出力・DISARMにする。
-- [ ] mecanum mixer、速度上限、車輪極性、出力ramp、サーボ範囲を実装する。
-- [ ] 認証付きstatus・ARM・DISARM・Stop・設定・時間制限付き診断APIを実装する。
-- [ ] UDP探索・34-byte指令・36-byte Telemetry・CRC・session・sequence検査を実装する。
-- [ ] Button A、1000ms操作timeout、Wi-Fi切断、I2C異常、診断時間満了時の停止を実装する。
+- [x] M5StickC Plus2、I2C `0x38`、4輪モーター、S1／S2サーボを初期化し、起動時ゼロ出力・DISARMにする。
+- [x] mecanum mixer、速度上限、車輪極性、出力ramp、サーボ範囲を実装する。
+- [x] 認証付きstatus・ARM・DISARM・Stop・設定・時間制限付き診断APIを実装する。
+- [x] UDP探索・34-byte指令・36-byte Telemetry・CRC・session・sequence検査を実装する。
+- [x] Button A、1000ms操作timeout、Wi-Fi切断、I2C異常、診断時間満了時の停止を実装する。
 
 完了条件: Firmwareがビルドでき、packet fixtureと状態遷移試験で無効指令の拒否、ゼロ出力、復帰条件を確認できる。実機の方向・停止確認はT12で行う。
 
