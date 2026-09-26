@@ -1,8 +1,10 @@
 # Verifiable Blackbox
 
-ロボットの仕事を作成し、操作終了後に利用者が署名して、検証・テスト報酬の支払い・領収書を確認するアプリです。DashboardとRover画面は日英対応です。
+設計は [Architecture (English)](docs/ARCHITECTURE.en.md) / [Architecture (日本語)](docs/ARCHITECTURE.md)、実装タスクは [TASKS](docs/TASKS.md) を参照してください。
 
-検証対象は承認文書とJobの整合性です。実際の移動・運搬・映像の意味を自動判定する機能はありません。機体のP-256署名とENS公開鍵の照合は独立ツールとして提供し、決済条件には含めません。
+ロボットの仕事を作成し、前ボタンの押下を記録して、Step 3から検証・テスト報酬の支払い・領収書を確認するアプリです。DashboardとRover画面は日英対応です。
+
+検証対象は操作記録とJobの整合性です。Raw動画の動きの判定は参考表示として取得します。機体のP-256署名とENS公開鍵の照合は独立ツールとして提供し、決済条件には含めません。
 
 ## セットアップ
 
@@ -35,18 +37,20 @@ http://127.0.0.1:3000 を開きます。ローカルデモは公開Anvilテス�
 1. **Sign in** → **1. Create job**。100 mUSDCをJobへ預けます。
 2. **2. Operate robot** → **Connect robot**。模擬Bridgeで方向ボタンを長押しし、離して停止します。
 3. **End controls & return to overview**。停止確認後に概要へ戻ります。
-4. **Verify & pay**。Job所有者の承認署名、Evidence照合、決済を経て領収書を表示します。
+4. **Verify & pay**。Job所有者と前ボタンの記録を確認し、Evidence照合、決済を経て領収書を表示します。動画は支払い完了後の **View job video** から開きます。
 5. **Other options → Test invalid evidence**。別の不正Evidenceを拒否し、領収書が発行されないことを確認できます。
 
-画面の模擬操作は実機の成功を示しません。自由操作はJobや支払いを変更しません。カメラ設定のONも機体をARMしません。[Rover・カメラ・停止動作](docs/ROVER.md)。
+画面の模擬操作は実機の成功を示しません。自由操作はJobや支払いを変更しません。カメラ設定のONも機体をARMしません。[Rover操作と支払い](docs/ARCHITECTURE.md#11-前ボタンの記録によるroverの報酬支払い)を参照してください。
 
 ## Phala・実機・署名
 
-`npm run demo:rover-phala` は別プロジェクトのPhala LOCAL_DEVも起動します。既定は `../../PhalaNetwork`、上書きは `PHALA_PROJECT_ROOT`。先にそのプロジェクトで依存導入とbuildを行います。[Phala接続手順](docs/PHALA.md)。
+`npm run demo:rover-phala` は別プロジェクトのPhala LOCAL_DEVも起動します。既定は `../../PhalaNetwork`、上書きは `PHALA_PROJECT_ROOT`。先にそのプロジェクトで依存導入とbuildを行います。[起動と外部接続](docs/ARCHITECTURE.md#7-起動と外部接続)を参照してください。
 
 実機は人が機体を見られる状態で `npm run demo:rover-hardware` を使用します。Python Bridgeの既定は `../../M5stack_RoverC/rover-python`、上書きは `ROVER_PYTHON_ROOT`。このコマンドの決済はローカルテストChainです。
 
-実Sepolia・Privy・Phalaの設定は `.env.example` を参考に、`apps/web/.env.local` 等の非公開ファイルで指定してください。ブラウザ用RPCには秘密を含めず、上流RPCとProvider・Relayer鍵はServerに保持します。APIはloopback・同一Origin用のデモです。インターネット公開用の認証・運用構成は含みません。
+実Sepolia・Privy・Phalaの設定は `.env.example` を参考に、Git対象外のアプリルート `.env` に指定してください。`npm run demo:sepolia -- --build` で事前ビルドし、`npm run demo:sepolia` で起動します。ブラウザ用RPCには秘密を含めず、上流RPCとProvider・Relayer鍵はServerに保持します。実機操作と決済APIはloopback・同一Origin用のデモです。
+
+Worldによる録画の開示は [Worldサービスの設定・操作手順](services/world-idp/README.md) を参照してください。
 
 機体署名は [独立CLIの説明](parts/device-signature/README.md) を参照してください。fixture／保存済み署名／今回の機体API応答をレポート上で区別します。
 
@@ -63,14 +67,6 @@ npm run test:browser
 ```
 
 同じ作業場所で複数のNext devを起動しないでください。検証runnerは自分が起動した子プロセスを終了します。実Phala・実機を使う確認は自動試験に含まれません。
-
-- [確認結果・未確認事項](docs/VALIDATION.md)、[タスク](TASKS.md)
-- [デモ手順・動画](docs/DEMO.md)、[設計](ARCHITECTURE.md)
-- [API](docs/API.md)、[中断・不明なTxの復旧](docs/RECOVERY.md)
-- [出典・ライセンス](docs/DEPENDENCIES.md)
-
-ローカル実行時の承認文書・署名・動画原本・秘密設定はGit対象外です。実Phalaへの接続と実機からSepolia決済までの有人確認は、確認結果に明記した残作業です。
-
 ## 支払台帳・月次集計
 
 `.env.ledger.example`を参考に、rootの`.env`へ`MULTIBAAS_URL`と`MULTIBAAS_API_KEY`を設定します。MultiBaas環境はEthereum Sepoliaを選択し、chain status・receipt・blockを読み取れるAPIキーを使用します。

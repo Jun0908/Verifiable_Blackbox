@@ -59,12 +59,11 @@ export function AnalysisPanel({scene}:{scene:Scene}) {
     {result.execution==="live"&&<p>{new Intl.DateTimeFormat(language==="ja"?"ja-JP":"en-GB",{dateStyle:"medium",timeStyle:"medium",timeZone:"Asia/Tokyo"}).format(new Date(result.analyzed_at!))} JST · {result.total_seconds!.toFixed(2)} s</p>}
     <p>{result.model} · {result.model_revision} · CPU</p>
     <p className="stg-muted">{t("Measured from differences between recovered frames. This value describes visible motion, not confidence or job completion.","復元フレームの差分から動きを計測しています。面積の割合であり、確信度や仕事完了の判定ではありません。")}</p>
-    <details><summary>{t("Method, hashes and sources","解析方式・ハッシュ・出典")}</summary><dl>
+    <details><summary>{t("Analysis details","解析の詳細")}</summary><dl>
       <dt>{t("Saved measurement","保存済み測定値")}</dt><dd>{scene.savedAnalysis.results.recovered.changed_area_percent.toFixed(2)}%</dd>
       {result.request_id&&<><dt>{t("Analysis ID","解析ID")}</dt><dd>{result.request_id}</dd></>}
       <dt>{t("Stego SHA-256","埋込み映像 SHA-256")}</dt><dd><code>{scene.manifest.stego_sha256}</code></dd>
       <dt>{t("Recovered RGB frames SHA-256","復元RGBフレーム SHA-256")}</dt><dd><code>{scene.manifest.recovered_frames_sha256}</code></dd>
-      <dt>{t("Cover source","カバー出典")}</dt><dd><a href={scene.source} target="_blank" rel="noreferrer">{scene.creator} · Pexels</a></dd>
-    </dl><a href="/api/stegavar/assets/SOURCES.md">{t("Code, models and footage credits","コード・モデル・映像の出典一覧")}</a></details>
+    </dl></details>
   </section>;
 }

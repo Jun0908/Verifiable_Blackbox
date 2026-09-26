@@ -1,0 +1,12 @@
+{
+  "chainId": 11155111,
+  "kind": "synthetic-smoke-test",
+  "sender": "0xFA42446112778d1dF31b6fDd92bce86339C285Dc",
+  "jobId": "1",
+  "createTx": "0xc1900726f694e8669ac014fe1d3eb4a62960368016541f22adedc16bb0b7ea4f",
+  "submitTx": "0x7d8b0243ba3dd401544d4a7978e00b22bc23e74772e71cc0f18e8f2bbe6741ed",
+  "settleTx": "0x7eaaba65800fe2f03259b63d7bc49afc132e4b2f8cb5d6579f03b19c08050c1a",
+  "receiptId": "0xbe98680096d9f6b1ed6b0ffe0b7c9eca3208116ec7483524c6465f08744514a7",
+  "providerPayment": "100000000",
+  "verifierMode": "PHALA_DSTACK"
+}

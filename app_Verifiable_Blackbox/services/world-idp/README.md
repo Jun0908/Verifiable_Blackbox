@@ -24,6 +24,10 @@ node services/world-idp/scripts/setup.mjs --from "D:/path/to/StegaVAR/world-idp/
 
 Portalのcallbackは `BASE_URL/auth/world/callback` と完全一致させます。HTTPS入口はこのサービスの127.0.0.1:8787だけへ接続します。Rover Bridgeへ転送しません。
 
+Portalで `The sector cannot change` と表示された場合は、Clientに固定されたsectorのホスト名と新しいCallbackのホスト名が一致していません。同じホスト名のCallback、またはそのsectorホスト名に置いたsector documentを使用する必要があります。ローカルホストから新しいHTTPSホストへ移行する場合は、新しいClientを作成してHTTPSのCallbackを登録してください。
+
+発行されたClient IDとSecretは **`services/world-idp/.env`** の `WORLD_CLIENT_ID` と `WORLD_CLIENT_SECRET` に保存します。現在の接続方式は `WORLD_CLIENT_AUTH=client_secret_basic` です。設定後はWorldサービスを再起動し、Demoの「今回の動画を見る」から開示リンクを作成し直します。Portalへの登録・公式認証の完了は本人の操作が必要です。
+
 Webアプリのroot `.env` には次を設定してWebを再起動します。
 
 ```dotenv
@@ -44,7 +48,7 @@ WORLD_INTERNAL_TOKEN=<開示サービスと同じ共有鍵>
 cloudflared tunnel --url http://127.0.0.1:8787 --no-autoupdate
 ```
 
-表示されたHTTPS URLをサービスの `BASE_URL` に設定し、rootで `node services/world-idp/scripts/setup.mjs` を実行します。[World Portal](https://sandbox.auth.world.org/portal)の対象Clientにも `https://取得したホスト/auth/world/callback` を登録し、サービスとWebを再起動します。一時URLはトンネル再起動で変わるため、継続利用には固定URLを使ってください。
+表示されたHTTPS URLをサービスの `BASE_URL` に設定し、rootで `node services/world-idp/scripts/setup.mjs` を実行します。[World Portal](https://sandbox.auth.world.org/portal)で `https://取得したホスト/auth/world/callback` を登録し、サービスとWebを再起動します。ホスト名がClientのsectorと異なる場合は上記の新規Client作成手順に従います。一時URLはトンネル再起動で変わるため、継続利用には固定URLを使ってください。
 
 ### 接続を確認する
 

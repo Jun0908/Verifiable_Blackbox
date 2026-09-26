@@ -8,7 +8,7 @@ English | [日本語](README.ja.md)
 |---|---|
 | **Demo video** | Coming soon |
 | **Live app** | Coming soon |
-| **Architecture** | [System architecture and component responsibilities](https://github.com/Jun0908/Verifiable_Blackbox/blob/main/app_Verifiable_Blackbox/docs/ARCHITECTURE.md) |
+| **Architecture** | [System architecture and component responsibilities](app_Verifiable_Blackbox/docs/ARCHITECTURE.en.md) · [日本語](app_Verifiable_Blackbox/docs/ARCHITECTURE.md) |
 | **Source code** | [GitHub](https://github.com/Jun0908/Verifiable_Blackbox) |
 
 ![Verifiable Blackbox protocol architecture](assets/architecture.png)

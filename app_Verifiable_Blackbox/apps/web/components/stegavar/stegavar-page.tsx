@@ -5,6 +5,7 @@ import {useLanguage} from "@/components/language";
 import type {Catalog} from "@/lib/stegavar/types";
 import {FramePlayer} from "./frame-player";
 import {AnalysisPanel} from "./analysis-panel";
+import {HowItWorks} from "./how-it-works";
 import "./stegavar.css";
 
 export function StegavarPage() {
@@ -32,5 +33,6 @@ export function StegavarPage() {
       <FramePlayer key={`player/${caseId}/${sceneId}`} scene={scene}/>
       <AnalysisPanel key={`analysis/${caseId}/${sceneId}`} scene={scene}/>
     </>}
+    <HowItWorks scenes={catalog?.cases[0]?.scenes}/>
   </main>;
 }

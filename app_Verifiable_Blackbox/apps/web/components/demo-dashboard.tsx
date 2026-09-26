@@ -8,6 +8,7 @@ import {RoverVideoResult} from "./rover-video-result";
 import Link from "next/link";
 import {JobProgress} from "./job-progress";
 import {RoverPaymentStatus} from "./rover-payment-status";
+import {DemoGasPanel, useDemoGas} from "./demo-gas";
 import type {RoverSessionRecord} from "@/lib/rover-session";
 import {readJobHistory, saveJobToHistory, type JobHistoryEntry, type ScenarioResult, type StoredDemoStateV3} from "@/lib/job-history";
 import {controlHasEnded} from "@/lib/job-flow";
@@ -90,6 +91,7 @@ export function DemoDashboard() {
     [wallets],
   );
   const selectedWalletAddress = selectedWallet?.address;
+  const gas = useDemoGas(selectedWallet, deployment, authenticated);
   const historyScope = useMemo(() => selectedWalletAddress && deployment ? {
     wallet: selectedWalletAddress, chainId: deployment.chainId, core: deployment.erc8183,
   } : undefined, [selectedWalletAddress, deployment]);
@@ -296,6 +298,8 @@ export function DemoDashboard() {
   ): Promise<ScenarioResult> {
     if (!deployment || !publicClient || !selectedWallet) throw new Error("Wallet not ready");
 
+    await gas.ensure();
+
     const startTransactionHash = await sendContract(
       deployment.erc8183,
       erc8183Abi,
@@ -471,8 +475,8 @@ export function DemoDashboard() {
   }
 
   const openJob = Boolean(job && (!status || status.status < 3));
-  const canSwitchJob = ready && (walletsReady || Boolean(selectedWallet)) && authenticated && Boolean(selectedWallet && deployment) && !restoring && !busy && !reviewBusy;
-  const canCreate = canSwitchJob && !openJob;
+  const canSwitchJob = ready && (walletsReady || Boolean(selectedWallet)) && authenticated && Boolean(selectedWallet && deployment) && !restoring && !busy && !reviewBusy && !gas.busy;
+  const canCreate = canSwitchJob && !openJob && (!gas.enabled || Boolean(gas.status?.ready || gas.status?.available || gas.status?.reason === "pending"));
   const canOperate = authenticated && job?.source === "rover" && status?.status === 1 && !restoring && !busy;
 
   const receiveReview = useCallback((record: RoverSessionRecord) => {
@@ -517,6 +521,7 @@ export function DemoDashboard() {
       {!ready || (!walletsReady && !selectedWallet) ? <button disabled>{t("Loading…", "読み込み中…")}</button> : authenticated ? <button className="secondary" onClick={() => logout()}>{t("Sign out", "ログアウト")}</button> : <button onClick={() => login()}>{t("Sign in", "ログイン")}</button>}
     </div></section>
 
+    <DemoGasPanel gas={gas} />
     <section className="metric-grid">
       <article className="metric-card"><span>{t("YOUR BALANCE", "残高")}</span><strong>{status ? formatToken(status.clientBalance) : "—"} <small>mUSDC</small></strong><p>{short(selectedWallet?.address)}</p></article>
       <article className="metric-card accent"><span>{t("TOTAL ESCROW", "エスクロー合計")}</span><strong>{status ? formatToken(status.escrowBalance) : "—"} <small>mUSDC</small></strong><p>{t("Across all demo jobs", "すべてのデモJobの合計")}</p></article>
