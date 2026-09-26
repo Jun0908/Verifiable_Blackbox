@@ -56,6 +56,8 @@ function render() {
     $('events').replaceChildren(...current.events.map(event=>{const li=document.createElement('li');li.textContent=`${eventName(event.name)} · ${new Date(event.at).toLocaleTimeString(lang)}`;return li;}));
   }
   if(!approved || approverId) lockVideo();
+  if(!approved) $('remaining').textContent='';
+  if(current && ['revoked','expired','cancelled','denied'].includes(current.status)) $('error').hidden=true;
 }
 async function refresh() {
   if(!requestId || (approverId && !session?.operator))return;
@@ -86,10 +88,15 @@ setInterval(async()=>{
   frameBusy=true; const epoch=mediaEpoch, id=current.id, index=frameIndex;
   try{
     const response=await fetch(`/media/${id}/frame/${index}`,{cache:'no-store'});
-    if(!response.ok)throw Error();const blob=await response.blob();
+    if(!response.ok){const error=Error();error.status=response.status;throw error;}const blob=await response.blob();
     if(epoch!==mediaEpoch || current?.id!==id || current?.status!=='approved' || current.grantUntil<=Date.now())return;
     if(objectUrl)URL.revokeObjectURL(objectUrl);objectUrl=URL.createObjectURL(blob);$('animation').src=objectUrl;$('animation').hidden=false;$('locked').hidden=true;
     const times=current.clip.capturedAt;const delay=index+1<times.length?Math.max(30,Math.min(2000,(times[index+1]-times[index])*1000)):500;
     nextFrameAt=Date.now()+delay;frameIndex=(index+1)%current.clip.frameCount;
-  }catch(error){lockVideo();report(error);}finally{frameBusy=false;}
+  }catch(error){
+    lockVideo();
+    // Revocation can reject an in-flight frame before the next status poll.
+    if(error.status===403)await refresh();
+    if(current?.status==='approved')report(error);
+  }finally{frameBusy=false;}
 },50);
