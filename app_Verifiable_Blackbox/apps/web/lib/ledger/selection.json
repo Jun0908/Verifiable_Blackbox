@@ -1,0 +1,29 @@
+{
+  "contracts": {
+    "chainId": 11155111,
+    "core": "0xdbf3647280CBd9e4A89D3e0c4b6bea9E6D5677B9",
+    "hook": "0xD26930e003f6bc1Fb087d05E0FC18a82a15F7c66",
+    "evaluators": [
+      "0xC2262b084A1a3dFD9cd2c6D03489B3c9ecB7d30c"
+    ],
+    "token": "0x75aC4F37060900AEc8461beD4841c6f236D0E6D2",
+    "tokenSymbol": "mUSDC",
+    "tokenDecimals": 6,
+    "explorerUrl": "https://sepolia.etherscan.io"
+  },
+  "selection": {
+    "chainId": 11155111,
+    "cutoffExclusive": "2026-09-26T15:00:00.000Z",
+    "jobs": [
+      {
+        "jobId": "1",
+        "source": "synthetic-smoke-test",
+        "transactions": [
+          "0xc1900726f694e8669ac014fe1d3eb4a62960368016541f22adedc16bb0b7ea4f",
+          "0x7d8b0243ba3dd401544d4a7978e00b22bc23e74772e71cc0f18e8f2bbe6741ed",
+          "0x7eaaba65800fe2f03259b63d7bc49afc132e4b2f8cb5d6579f03b19c08050c1a"
+        ]
+      }
+    ]
+  }
+}

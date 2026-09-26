@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@curvegrid/multibaas-sdk": "1.1.1",
     "@privy-io/react-auth": "3.37.4",
     "@solana-program/memo": "0.8.0",
     "@solana-program/system": "0.8.0",
