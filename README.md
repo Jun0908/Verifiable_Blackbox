@@ -6,8 +6,8 @@ English | [日本語](README.ja.md)
 
 | | |
 |---|---|
-| **Demo video** | Coming soon |
-| **Live app** | Coming soon |
+| **Demo video** | [Watch the demo on YouTube](https://youtu.be/E3z8Gu1oNS8) |
+| **Live app** | [Explore the public demo on Vercel](https://verifiable-blackbox-preview.vercel.app/) |
 | **Architecture** | [System architecture and component responsibilities](app_Verifiable_Blackbox/docs/ARCHITECTURE.en.md) · [日本語](app_Verifiable_Blackbox/docs/ARCHITECTURE.md) |
 | **Source code** | [GitHub](https://github.com/Jun0908/Verifiable_Blackbox) |
 
@@ -68,7 +68,7 @@ Our demonstration hardware is a small M5Stack Rover. The intended applications i
 
 The elements to standardize across robot types are the Job, device identity, evidence references, acceptance result, and payment record. Acceptance conditions remain specific to each application: a delivery handoff and cleaning quality require different sensors and evaluation methods.
 
-The current MVP connects evidence to settlement and includes ENS device-signature checks, video embedding and reconstruction, and a payment ledger. Integrating access controls for confidential footage is part of the broader product design.
+The MVP connects evidence to settlement and includes ENS device-signature checks, video embedding and reconstruction, a payment ledger, and **World-authenticated approval for time-limited footage disclosure**. Customers can trace a payment to its supporting records and request access to the corresponding footage, while authorized approvers control its disclosure.
 
 ## Demo
 
@@ -79,6 +79,7 @@ The demo follows one job from its creation to the evidence behind its payment.
 3. **Check the payment conditions.** Match the user's signed authorization to the session records. The video-based path also considers the motion assessment of that session's recording.
 4. **Move from Evidence to settlement.** Follow Phala's signed verdict and the Ethereum contract checks through to the reward and Receipt.
 5. **Trace the payment.** Reconcile the Job, Evidence, verification Receipt, and token transfer in the ledger.
+6. **Review footage with approval.** Request access to a Job's recording. An authorized approver reviews the request and authenticates with World; the requester receives five-minute, revocable access bound to their browser session.
 
 On Sepolia, a Job using synthetic Evidence received a Phala verdict and completed a **100 mUSDC payment**.
 
@@ -143,7 +144,17 @@ The [StegaVAR service](https://github.com/Jun0908/Verifiable_Blackbox/tree/main/
 
 A separate [job-recording analysis implementation](https://github.com/Jun0908/Verifiable_Blackbox/blob/main/app_Verifiable_Blackbox/services/stegavar/scripts/job_recording.py) supplies motion assessments to the application's payment conditions.
 
-Video embedding and access control are separate capabilities. The current public samples do not provide a confidentiality guarantee. The broader design envisions combining World identity checks with business access permissions to disclose evidence to the appropriate parties.
+StegaVAR handles video embedding and reconstruction, while the World disclosure workflow below controls access to protected Job recordings.
+
+### World — Human approval for sharing robot-job footage
+
+Robot-job footage can reveal products, people, and sensitive facility layouts. **World ID for Agents connects human authentication to a specific disclosure approval**, so customers can review evidence while authorized approvers control who receives access.
+
+From a Job's details or Receipt, the owner creates a disclosure invitation. The viewer requests access in their own browser, and an authorized approver reviews the Job, recording, and requester before authenticating with World. [world-disclosure.ts](https://github.com/Jun0908/Verifiable_Blackbox/blob/main/app_Verifiable_Blackbox/apps/web/lib/server/world-disclosure.ts) checks Job ownership and registers the recording with its Job, session, hash, and Receipt references.
+
+[oidc.mjs](https://github.com/Jun0908/Verifiable_Blackbox/blob/main/app_Verifiable_Blackbox/services/world-idp/src/oidc.mjs) implements OIDC Authorization Code with PKCE, validates the callback, and requires fresh authentication for each disclosure. [app.mjs](https://github.com/Jun0908/Verifiable_Blackbox/blob/main/app_Verifiable_Blackbox/services/world-idp/src/app.mjs) binds that result to the pending request and checks the configured Job permissions before granting **five-minute, revocable viewing access limited to the requester's browser session**. Expired or revoked grants stop further footage delivery.
+
+This gives a customer a concrete way to inspect the footage behind a robot job, with a human decision governing each disclosure.
 
 ## Technology stack
 
@@ -154,6 +165,7 @@ Video embedding and access control are separate capabilities. The current public
 | Smart contracts | Solidity, Foundry, Core/Hook/Evaluator based on ERC-8183, EIP-712 |
 | Device identity | ENS, P-256 signatures, ERC-7913 |
 | Evidence verification | Phala Cloud, dstack |
+| Footage disclosure approval | World ID for Agents, OpenID Connect, PKCE |
 | Payment ledger | Curvegrid MultiBaas |
 | Video processing | Python, PyTorch, StegaVAR, LF-VSN |
 | Hardware | M5StickC Plus2, RoverC Pro, Unit CamS3-5MP, ESP32, PlatformIO |
@@ -164,4 +176,4 @@ Video embedding and access control are separate capabilities. The current public
 |---|---|
 | [M5stack_RoverC](https://github.com/Jun0908/Verifiable_Blackbox/tree/main/M5stack_RoverC) | Robot control, camera, recording, Python Bridge, and device signatures |
 | [PhalaNetwork](https://github.com/Jun0908/Verifiable_Blackbox/tree/main/PhalaNetwork) | Evidence verification, signed verdicts, and attestation |
-| [app_Verifiable_Blackbox](https://github.com/Jun0908/Verifiable_Blackbox/tree/main/app_Verifiable_Blackbox) | Job management, controls, authorization, settlement, ENS checks, ledger, and video processing |
+| [app_Verifiable_Blackbox](https://github.com/Jun0908/Verifiable_Blackbox/tree/main/app_Verifiable_Blackbox) | Job management, controls, authorization, settlement, ENS checks, ledger, video processing, and World-authenticated footage disclosure |

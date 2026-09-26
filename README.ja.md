@@ -6,8 +6,8 @@
 
 | | |
 |---|---|
-| **Demo video** | 公開後に追加 |
-| **Live app** | 公開後に追加 |
+| **Demo video** | [YouTubeでデモ動画を見る](https://youtu.be/E3z8Gu1oNS8) |
+| **Live app** | [Vercelの公開デモを開く](https://verifiable-blackbox-preview.vercel.app/) |
 | **Architecture** | [システム構成と各コンポーネントの役割](https://github.com/Jun0908/Verifiable_Blackbox/blob/main/app_Verifiable_Blackbox/docs/ARCHITECTURE.md) |
 | **Source code** | [GitHub](https://github.com/Jun0908/Verifiable_Blackbox) |
 
@@ -68,7 +68,7 @@ Ethereum上で署名付き判定を確認し、支払う
 
 機種をまたいで共通化するのは、Job、機体識別、証拠への参照、検収結果、支払い記録です。作業を受け入れるための条件は用途ごとに定義します。荷物の受け渡しと清掃品質では、必要なセンサーや判定方法が異なるためです。
 
-現在のMVPでは、証拠と決済の接続に加え、ENSによる機体署名の確認、映像の埋め込み・復元、支払台帳を実装しています。機密映像の閲覧権限を含めた統合は、全体構想に位置づけています。
+MVPでは、証拠と決済の接続に加え、ENSによる機体署名の確認、映像の埋め込み・復元、支払台帳、**World認証による期限付き映像開示の承認**を実装しています。発注者は支払いの根拠をたどって対応する映像の閲覧を依頼でき、権限を持つ承認者が開示を管理できます。
 
 ## Demo
 
@@ -79,6 +79,7 @@ Ethereum上で署名付き判定を確認し、支払う
 3. **支払い条件を確認する。** 利用者の署名付き承認とセッションの記録を照合します。動画を用いる経路では、今回の録画の動作判定も扱います。
 4. **Evidenceから決済へ進む。** Phalaの署名付き判定とEthereum上の検査を経て、報酬とReceiptを確認します。
 5. **支払いの根拠をたどる。** 台帳からJob、Evidence、検証Receipt、トークン移転を照合します。
+6. **承認を受けて映像を確認する。** Jobの録画へのアクセスを依頼します。権限を持つ承認者が依頼を確認してWorldで認証すると、依頼者のブラウザセッションに限定した、取消可能な5分間の閲覧権限が付与されます。
 
 Sepoliaでは、合成Evidenceを用いたJobでPhalaから判定を受け取り、**100 mUSDCの支払い**が完了しています。
 
@@ -143,7 +144,17 @@ Phalaは記録とJobの整合性を確認し、動画の動作判定はアプリ
 
 別の処理として、[今回の録画を解析する実装](https://github.com/Jun0908/Verifiable_Blackbox/blob/main/app_Verifiable_Blackbox/services/stegavar/scripts/job_recording.py)が、動作の有無をアプリ側の支払い条件へ渡します。
 
-映像の埋め込みと閲覧権限の制御は別の機能です。現在の公開サンプルは機密性を保証するものではありません。全体構想では、Worldによる本人性確認と業務上の閲覧権限を組み合わせ、必要な相手への証拠開示につなげることを想定しています。
+StegaVARが動画の埋め込みと復元を担当し、保護対象となるJob録画の閲覧権限は、以下のWorld開示フローで管理します。
+
+### World — 人の承認で、ロボットの作業映像を開示する
+
+ロボットの作業映像には、製品、従業員、施設の配置などの機密情報が含まれます。**World ID for Agentsによる人の認証を、一件ごとの開示承認に結びつける**ことで、発注者が証拠を確認できると同時に、権限を持つ承認者が開示先を管理できます。
+
+Jobの所有者が詳細・Receipt画面から開示依頼用リンクを作成し、閲覧者が自分のブラウザからアクセスを依頼します。承認者は対象Job、録画、依頼者を確認してWorldで認証します。[world-disclosure.ts](https://github.com/Jun0908/Verifiable_Blackbox/blob/main/app_Verifiable_Blackbox/apps/web/lib/server/world-disclosure.ts)がJobの所有者を確認し、Job・セッション・ハッシュ・Receiptへの参照とともに録画を登録します。
+
+[oidc.mjs](https://github.com/Jun0908/Verifiable_Blackbox/blob/main/app_Verifiable_Blackbox/services/world-idp/src/oidc.mjs)は、OIDC Authorization CodeとPKCEによる認証、コールバックの検証、開示依頼ごとの新しい認証を実装します。[app.mjs](https://github.com/Jun0908/Verifiable_Blackbox/blob/main/app_Verifiable_Blackbox/services/world-idp/src/app.mjs)が認証結果を対象の依頼に結びつけ、設定されたJobへの権限を確認したうえで、**依頼者のブラウザセッションに限定した、取消可能な5分間の閲覧権限**を付与します。期限切れや取消後は、以後の映像配信を拒否します。
+
+これにより、発注者はロボットの仕事に対応する映像を確認でき、その開示を一件ごとに人が判断できます。
 
 ## 技術構成
 
@@ -154,6 +165,7 @@ Phalaは記録とJobの整合性を確認し、動画の動作判定はアプリ
 | スマートコントラクト | Solidity、Foundry、ERC-8183を基にしたCore・Hook・Evaluator、EIP-712 |
 | 機体識別 | ENS、P-256署名、ERC-7913 |
 | Evidence検証 | Phala Cloud、dstack |
+| 映像開示の承認 | World ID for Agents、OpenID Connect、PKCE |
 | 支払台帳 | Curvegrid MultiBaas |
 | 映像処理 | Python、PyTorch、StegaVAR、LF-VSN |
 | ハードウェア | M5StickC Plus2、RoverC Pro、Unit CamS3-5MP、ESP32、PlatformIO |
@@ -164,4 +176,4 @@ Phalaは記録とJobの整合性を確認し、動画の動作判定はアプリ
 |---|---|
 | [M5stack_RoverC](https://github.com/Jun0908/Verifiable_Blackbox/tree/main/M5stack_RoverC) | 機体制御、カメラ、録画、Python Bridge、機体署名 |
 | [PhalaNetwork](https://github.com/Jun0908/Verifiable_Blackbox/tree/main/PhalaNetwork) | Evidence検証、署名付き判定、Attestation |
-| [app_Verifiable_Blackbox](https://github.com/Jun0908/Verifiable_Blackbox/tree/main/app_Verifiable_Blackbox) | Job管理、操作画面、承認、決済、ENS確認、台帳、映像処理 |
+| [app_Verifiable_Blackbox](https://github.com/Jun0908/Verifiable_Blackbox/tree/main/app_Verifiable_Blackbox) | Job管理、操作画面、承認、決済、ENS確認、台帳、映像処理、World認証による映像開示 |
