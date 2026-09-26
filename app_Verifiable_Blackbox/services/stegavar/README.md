@@ -16,7 +16,7 @@ services/stegavar/.venv/Scripts/python.exe services/stegavar/scripts/inference_s
 
 On Linux, use `.venv/bin/python` for the service interpreter. The dependency lock targets Python 3.11 and CPU PyTorch. It includes transitive versions and distribution hashes. Regenerate with `uv pip compile services/stegavar/requirements.in --python-version 3.11 --index-strategy unsafe-best-match --generate-hashes --output-file services/stegavar/requirements.txt`.
 
-The service binds to `127.0.0.1:4176`. `GET /health` reports readiness, available case/scene pairs, model loading and active analysis. `POST /analyze` accepts only `{"case":"rover-moving","scene":"surf"}`-shaped requests using configured IDs. Motion cases run without loading X-CLIP. Models are loaded locally and reused. The browser uses the Next.js adapter; direct browser origins are rejected.
+The service binds to `127.0.0.1:4178`. `GET /health` reports readiness, available case/scene pairs, model loading and active analysis. `POST /analyze` accepts only `{"case":"rover-moving","scene":"surf"}`-shaped requests using configured IDs. Motion cases run without loading X-CLIP. Models are loaded locally and reused. The browser uses the Next.js adapter; direct browser origins are rejected.
 
 Analysis verifies the lossless stego hash and all recovered RGB frames against the manifest. A concurrent request receives 409. Missing data/model returns 503, input integrity failure 422 and processing failure 500. HTTP disconnection does not cancel CPU processing or release its lock early. Live results are returned to the caller; public assets are not overwritten.
 
@@ -29,7 +29,7 @@ Analysis verifies the lossless stego hash and all recovered RGB frames against t
 | `STEGAVAR_WORK_ROOT` | `services/stegavar/work` |
 | `STEGAVAR_SOURCE_ROOT` | `services/stegavar/work/sources` |
 | `STEGAVAR_TORCH_THREADS` | `4` |
-| `STEGAVAR_PORT` | `4176` |
+| `STEGAVAR_PORT` | `4178` |
 
 Absolute paths are accepted for these filesystem settings. The standalone Python command reads process environment variables. Web and Python must reference the same published manifest and recovered frames. Source recordings, models, downloaded source repositories, Python environments and intermediate build files are ignored by Git.
 

@@ -4,6 +4,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import argparse
 import json
 import os
+import socket
 import threading
 import time
 import uuid
@@ -14,6 +15,15 @@ CASES = json.loads((ROOT / 'config/cases.json').read_text(encoding='utf-8'))
 SCENES = json.loads((ROOT / 'config/scenes.json').read_text(encoding='utf-8'))
 LOCK = threading.Lock()
 ENGINE = None
+
+
+class Server(ThreadingHTTPServer):
+    allow_reuse_address = False
+
+    def server_bind(self):
+        if hasattr(socket, 'SO_EXCLUSIVEADDRUSE'):
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        super().server_bind()
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -107,9 +117,9 @@ class Handler(BaseHTTPRequestHandler):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--port', type=int, default=int(os.environ.get('STEGAVAR_PORT', '4176')))
+    parser.add_argument('--port', type=int, default=int(os.environ.get('STEGAVAR_PORT', '4178')))
     args = parser.parse_args()
-    server = ThreadingHTTPServer(('127.0.0.1', args.port), Handler)
+    server = Server(('127.0.0.1', args.port), Handler)
     print(f'StegaVAR CPU analysis: http://127.0.0.1:{server.server_port}', flush=True)
     try:
         server.serve_forever()
