@@ -1,11 +1,12 @@
 import {monthlyCsv} from "@/lib/ledger/monthly-demo";
 import {sampleRows, period} from "@/lib/server/curvegrid/monthly";
 import {json, requireLocal, failure} from "@/lib/server/curvegrid/http";
+import {publicPreview} from "@/lib/public-preview";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   try {
-    requireLocal(request);
+    if (!publicPreview) requireLocal(request);
     const month = period(request);
     const kind = new URL(request.url).searchParams.get("kind");
     if (kind !== "summary" && kind !== "details") return json({error:"INVALID_KIND"},400);

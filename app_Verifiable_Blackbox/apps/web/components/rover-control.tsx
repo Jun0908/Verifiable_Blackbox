@@ -1,4 +1,5 @@
 "use client";
+import {publicPreview} from "@/lib/public-preview";
 
 import {useCallback, useEffect, useRef, useState, type RefObject} from "react";
 import {useLanguage} from "./language";
@@ -67,6 +68,7 @@ export function RoverControl({onFinished, exitRef, onForwardPressed, onConnected
   }, [release, stop]);
 
   useEffect(() => {
+    if (publicPreview) return;
     let cancelled = false, polling = false;
     const poll = async () => {
       if (polling) return;
@@ -113,6 +115,7 @@ export function RoverControl({onFinished, exitRef, onForwardPressed, onConnected
   useEffect(() => {const timer = setInterval(sendDrive, 120); return () => clearInterval(timer);}, [sendDrive]);
 
   async function connect() {
+    if (publicPreview) return;
     setConnecting(true); setError(""); setExitUnconfirmed(false);
     const epoch = stopEpoch.current;
     try {
@@ -191,7 +194,7 @@ export function RoverControl({onFinished, exitRef, onForwardPressed, onConnected
           onContextMenu={event => event.preventDefault()}>{t("Hold to grab", "つかむ（長押し）")}</button>
       </div><p>{t("Hold to close gradually. Release the button at the position you want.", "押している間だけ少しずつ閉じます。つかんだらボタンを離してください。")}</p>
     </section></div><div className="rover-options"><span className="eyebrow">{t("SPEED", "速度")}</span><div className="rover-speed">{([[35,"Slow","ゆっくり"],[60,"Normal","ふつう"],[85,"Fast","速め"]] as const).map(([value,en,ja]) => <button type="button" key={value} disabled={Boolean(direction)} aria-pressed={speed === value} className={speed === value ? "selected" : ""} onClick={() => setSpeed(value)}>{t(en,ja)}</button>)}</div>
-      <button type="button" onClick={() => void connect()} disabled={active}>{connecting ? t("Connecting…", "接続しています…") : t("Connect robot", "ロボットに接続")}</button>
+      <button type="button" onClick={() => void connect()} disabled={active || publicPreview}>{connecting ? t("Connecting…", "接続しています…") : t("Connect robot", "ロボットに接続")}</button>
       <small>{t("Release a direction to stop driving. The red Stop button disconnects. Leaving this page or losing the connection also stops the robot.", "方向ボタンを離すと走行を停止します。赤い停止ボタンは接続も解除します。ページ移動や通信切断時にも停止します。")}</small>
       <details className="control-details"><summary>{t("Connection details", "接続の詳細")}</summary><dl className="robot-readings"><div><dt>{t("Robot response", "ロボットの応答")}</dt><dd>{status?.telemetryFresh ? t("Receiving", "受信中") : t("Not received", "未受信")}</dd></div><div><dt>{t("Motor output", "モーター出力")}</dt><dd>{status?.telemetryFresh && status.motors ? status.motors.join(" / ") : "—"}</dd></div><div><dt>{t("Physical movement", "実際の移動")}</dt><dd>{t("Not verified", "未検証")}</dd></div></dl></details>
     </div></div>

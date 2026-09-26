@@ -1,4 +1,5 @@
 "use client";
+import {publicPreview} from "@/lib/public-preview";
 import {loadDemoState, storeDemoState} from "@/lib/active-job";
 
 
@@ -169,6 +170,7 @@ export function DemoDashboard() {
   },[publicClient,deployment,selectedWalletAddress]);
 
   useEffect(() => {
+    if (publicPreview) return;
     fetch("/api/demo/config", {cache: "no-store"})
       .then(async (response) => {
         const payload = (await response.json()) as DemoDeployment & {
@@ -527,7 +529,7 @@ export function DemoDashboard() {
       <div className="panel-heading"><div><span className="eyebrow">{t("YOUR JOB", "仕事の状況")}</span><h2>{t("From work to payment", "仕事から支払いまで")}</h2></div><span className="job-pill">{job ? `#${job.jobId}` : t("NO JOB", "仕事なし")}</span></div>
       <JobProgress created={Boolean(job && status && status.status >= 1)} sample={job?.source === "fixture"} operated={job?.source === "rover" ? operationEnded || Boolean(demoReview?.authorizationSignature) : Boolean(status && status.status >= 2)} verified={verified || status?.status === 3} paid={status?.status === 3} />
       <div className="next-action">
-        {restoring ? <p>{t("Loading your job…", "仕事を読み込んでいます…")}</p> : !authenticated ? <><p>{t("Sign in to create your first job.", "ログインして仕事を作成してください。")}</p><button onClick={() => login()} disabled={!ready}>{t("Sign in to begin", "ログインして開始")}</button></> : !openJob ? <><h3>{t(status?.status === 3 ? "Ready for the next job?" : "Start a robot job", status?.status === 3 ? "次の仕事を始めますか？" : "ロボットの仕事を始める")}</h3><p>{t("Reserve 100 mUSDC. Pressing Forward pays the Provider once, including a short press. Video results are for reference.", "100 mUSDCを預けます。短い操作でも前ボタンを押した記録でProviderに1回支払います。動画判定は参考結果です。")}</p><button onClick={() => void handleStartRover()} disabled={!canCreate}>{t(job ? "Create new job" : "1. Create job", job ? "新しい仕事を作成" : "1. 仕事を作成")}</button></> : canOperate ? <>
+        {restoring ? <p>{t("Loading your job…", "仕事を読み込んでいます…")}</p> : !authenticated ? <><p>{t("Sign in to create your first job.", "ログインして仕事を作成してください。")}</p><button onClick={() => login()} disabled={!ready || publicPreview}>{t("Sign in to begin", "ログインして開始")}</button></> : !openJob ? <><h3>{t(status?.status === 3 ? "Ready for the next job?" : "Start a robot job", status?.status === 3 ? "次の仕事を始めますか？" : "ロボットの仕事を始める")}</h3><p>{t("Reserve 100 mUSDC. Pressing Forward pays the Provider once, including a short press. Video results are for reference.", "100 mUSDCを預けます。短い操作でも前ボタンを押した記録でProviderに1回支払います。動画判定は参考結果です。")}</p><button onClick={() => void handleStartRover()} disabled={!canCreate}>{t(job ? "Create new job" : "1. Create job", job ? "新しい仕事を作成" : "1. 仕事を作成")}</button></> : canOperate ? <>
           <h3>{t(operationEnded ? "Control session ended" : "Your robot is next", operationEnded ? "操作セッションが終了しました" : "次はロボットを操作")}</h3>
           <p>{operationEnded ? t("Continue with verification and payment below.", "下の「検証して支払う」へ進んでください。") : t("Your job number is carried over automatically.", "仕事番号は自動で引き継がれます。")}</p>
           {!operationEnded && !demoReview?.authorizationSignature && <Link className="primary-link" href={{pathname:"/rover", query:{job:job!.jobId.toString()}}}>{t("2. Operate robot", "2. ロボットを操作")} <span>→</span></Link>}
