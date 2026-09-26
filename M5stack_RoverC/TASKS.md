@@ -145,11 +145,13 @@
 
 依存: T04・T05・T07・T10。
 
-- [ ] アプリlauncherの`ROVER_PYTHON_ROOT`／`ROVER_PYTHON`からこのPython環境を起動する手順を用意する。
-- [ ] `--camera --no-browser`、起動token、port、起動待ち、終了処理をアプリと照合する。
-- [ ] Next.js経由のdrive・release・stop・gripper・cameraを模擬機体で確認する。
+- [x] アプリlauncherの`ROVER_PYTHON_ROOT`／`ROVER_PYTHON`からこのPython環境を起動する手順を用意する。
+- [x] `--camera --no-browser`、起動token、port、起動待ち、終了処理をアプリと照合する。
+- [x] Next.js経由のdrive・release・stop・gripper・cameraを模擬機体で確認する。
 - [ ] アプリのJob引継ぎと操作終了表示を確認し、自由操作や停止から自動決済しないことを検証する。
-- [ ] 停止中の署名APIをアプリの独立署名CLIから呼ぶ試験を用意する。ENS／ERC-7913はアプリ側で検証する。
+- [x] 停止中の署名APIをアプリの独立署名CLIから呼ぶ試験を用意する。ENS／ERC-7913はアプリ側で検証する。
+
+実施状況: 実際のNext.js route関数→Python Bridge→模擬Roverを確認。Job引継ぎデータ・操作終了マーカー・自動決済拒否も試験済み。Next.js全画面／Wallet／Chainを起動した表示の通し確認は未実施のため、T11は部分完了。詳細は[BLACKBOX.md](docs/BLACKBOX.md)。
 
 完了条件: 模擬環境でアプリから接続・操作・停止・映像表示まで通る。BridgeへEthereumの秘密鍵を渡さず、署名確認と支払いの処理が独立している。
 
@@ -165,6 +167,8 @@
 - [ ] 単体Web・GUI・Blackboxを一つずつ起動して通し確認し、対象機器・起動・校正・復旧手順をREADMEへまとめる。
 
 完了条件: 実機の走行・開閉・停止・映像・録画・接続切替・署名が各画面から利用できる。模擬試験だけで実機確認を完了扱いにせず、未確認項目はチェックを残す。
+
+実施状況: ユーザーが後で設定を入れる予定のため、書込み・実機操作は未実施。読取専用の`preflight.py`と[設定・実機確認手順](docs/HARDWARE_CHECKLIST.md)を用意した。
 
 ## 将来の拡張
 
