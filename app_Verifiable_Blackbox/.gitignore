@@ -7,6 +7,7 @@ node_modules/
 /.playwright-mcp/
 /lib/
 /artifacts/
+/scripts/record-*-demo.mjs
 /deployments/demo.web.json
 /deployments/demo.local.json
 /deployments/demo.phala.local.json

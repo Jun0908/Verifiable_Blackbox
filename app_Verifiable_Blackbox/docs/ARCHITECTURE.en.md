@@ -447,7 +447,7 @@ Revocation and expiry remove footage from the screen and prevent subsequent deli
 
 ### Official integration and verification scope
 
-Official Sandbox configuration, discovery connectivity, and browser authentication through private footage delivery have been checked with saved Job 5 footage. The browser recording also verifies viewer-session binding and revocation. It uses the official event's mock identity, with no hardware operation or chain transaction. Official cancellation and a supervised hardware-to-payment run remain separate checks.
+Official Sandbox configuration, discovery connectivity, and browser authentication through private footage delivery have been checked with saved Job 5 footage. The browser checks also verify viewer-session binding and revocation. It uses the official event's mock identity, with no hardware operation or chain transaction. Official cancellation and a supervised hardware-to-payment run remain separate checks.
 
 The [World event guidance](https://ethglobal.com/events/tokyo2026/prizes/world), checked on September 26, 2026, describes World ID for Agents using simulated proofs without requiring the Sandbox app. Check the [official event environment documentation](https://sandbox.auth.world.org/docs) and issued Client settings. Portal callback must exactly match `BASE_URL/auth/world/callback`. An expired temporary HTTPS tunnel requires updating both service configuration and the Portal callback.
 
