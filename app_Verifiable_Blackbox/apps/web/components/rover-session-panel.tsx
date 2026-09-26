@@ -24,6 +24,8 @@ export function RoverSessionPanel({job}: {job: ActiveRobotJob}) {
   const [record, setRecord] = useState<RoverSessionRecord | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
+  const [errorDetail, setErrorDetail] = useState<string>();
+  const [requestStage, setRequestStage] = useState<"wallet" | "server">("wallet");
   const [analyzing, setAnalyzing] = useState(false);
   const analysisRequested = useRef<string | undefined>(undefined);
   const [paying, setPaying] = useState(false);
@@ -74,7 +76,8 @@ export function RoverSessionPanel({job}: {job: ActiveRobotJob}) {
   }
   async function act(action: "prepare" | "authorize" | "status") {
     if (!allowed || !wallet || inFlight.current) return;
-    inFlight.current = true; setBusy(true); setError(undefined);
+    inFlight.current = true; setBusy(true); setError(undefined); setErrorDetail(undefined); setRequestStage("wallet");
+    let stage: "wallet" | "server" = "wallet";
     try {
       const signer = createWalletClient({account: wallet.address as Address, transport: custom(await wallet.getEthereumProvider())});
       if (action === "authorize") {
@@ -82,6 +85,7 @@ export function RoverSessionPanel({job}: {job: ActiveRobotJob}) {
         const signature = signatureRef.current ?? await signer.signMessage({message: roverAuthorizationMessage(record.context)});
         signatureRef.current = signature;
         if (!mounted.current) return;
+        stage = "server"; setRequestStage("server");
         accept(await post({action, jobId: job.jobId, sessionId: record.context.sessionId, signature}));
         setSettings(false);
       } else {
@@ -94,12 +98,22 @@ export function RoverSessionPanel({job}: {job: ActiveRobotJob}) {
           if (action === "prepare") accessRef.current = request;
         }
         if (!mounted.current) return;
+        stage = "server"; setRequestStage("server");
         const next = await post(action === "prepare" ? {action, ...request} : request,
           action === "status" ? "/api/demo/rover/session/status" : undefined);
         if (action === "prepare" && next && roverHash(next.context.options) !== roverHash(request.access.options)) throw Error("SESSION_CONTEXT_CHANGED");
         accept(next);
+        if (action === "status" && !next) setError("NO_SAVED_SESSION");
       }
-    } catch (cause) {if (mounted.current) setError(cause instanceof Error ? cause.message : "SESSION_REQUEST_FAILED");}
+    } catch (cause) {if (mounted.current) {
+      const failure = cause as {code?: number; shortMessage?: string; message?: string};
+      const message = failure?.shortMessage || failure?.message || "";
+      const rejected = failure?.code === 4001 || /user rejected|user denied|cancelled|canceled/i.test(message);
+      setError(rejected ? "WALLET_REQUEST_CANCELLED" : stage === "wallet" ? "WALLET_SIGNATURE_FAILED"
+        : /^[A-Z_]+$/.test(message) ? message : "SESSION_REQUEST_FAILED");
+      // Display the wallet's concise explanation, without RPC arguments or stack traces.
+      if (stage === "wallet" && !rejected) setErrorDetail(message.split("\n")[0].slice(0,240));
+    }}
     finally {inFlight.current = false; if (mounted.current) setBusy(false);}
   }
   function reset() {
@@ -230,6 +244,13 @@ export function RoverSessionPanel({job}: {job: ActiveRobotJob}) {
         onPointerUp={cancelHold} onPointerCancel={cancelHold} onLostPointerCapture={cancelHold} onBlur={cancelHold}
         onKeyDown={event => {if ([" ", "Enter"].includes(event.key)) {event.preventDefault(); if (!event.repeat) startHold();}}}
         onKeyUp={cancelHold} onContextMenu={event => event.preventDefault()}>⚙</button></div>
+    {!record && <div className="rover-session-guide">
+      <h3>{t("How to drive this job", "ロボットを動かす手順")}</h3>
+      <ol><li>{t("Review execution conditions and approve the wallet access signature.", "「実行条件を確認」を押し、ウォレットで確認用の署名をします。")}</li>
+        <li>{t("Sign the payment conditions, then select Start observation.", "支払い条件に署名し、「記録を開始」を押します。")}</li>
+        <li>{t("Hold Forward to move. Release to stop (up to 3 seconds).", "前ボタンを押している間だけ前進します。離すと停止します（最大3秒）。")}</li></ol>
+      <p>{t("The Forward button becomes available after recording starts. Signing alone does not move the robot.", "記録が始まると前ボタンが使えます。署名だけではロボットは動きません。")}</p>
+    </div>}
     <div className="rover-session-options">
       <label>{t("Maximum drive time (seconds)", "走行上限（秒）")}<input type="number" min="0.5" max="3" step="0.5" value={options.durationMs / 1000} disabled={locked}
         onChange={e => {accessRef.current = undefined; setOptions({...options, durationMs: Math.round(Number(e.target.value) * 1000)});}} /></label>
@@ -252,6 +273,7 @@ export function RoverSessionPanel({job}: {job: ActiveRobotJob}) {
     </fieldset>}
     {!record && <div className="actions"><button disabled={!allowed || busy} onClick={() => void act("prepare")}>{t("Review execution conditions", "実行条件を確認")}</button>
       <button disabled={!allowed || busy} onClick={() => void act("status")}>{t("Load saved session", "保存したセッションを確認")}</button></div>}
+    {!record && <p>{t("Use Load saved session only to resume conditions you have already signed.", "「保存したセッションを確認」は、署名済みの実行を再開するときに使います。")}</p>}
     {record && <>
       <p>{record.context.options.judgmentMode === "SKIP_VIDEO" || skipSaved
         ? t("Video recognition is skipped. Payment uses successful drive commands and confirmed stop.", "動画認識をスキップします。走行指令の成功と停止確認で支払います。")
@@ -300,8 +322,16 @@ export function RoverSessionPanel({job}: {job: ActiveRobotJob}) {
         {record.error && <><dt>{t("Run result", "実行結果")}</dt><dd>{record.error}</dd></>}
       </dl></details>
     </>}
-    {busy && <p role="status">{t("Confirm the request in your wallet…", "ウォレットで内容を確認してください…")}</p>}
-    {error && <p role="alert">{t("Could not complete the request. Check the saved session before retrying.", "処理を完了できませんでした。保存したセッションを確認してから再試行してください。")}
-      {/^\w+$/.test(error) && <span className="rover-session-error">{error}</span>}</p>}
+    {busy && <p role="status">{requestStage === "wallet" ? t("Confirm the request in your wallet…", "ウォレットで内容を確認してください…") : t("Checking and saving your session…", "実行条件・保存状態を確認しています…")}</p>}
+    {error && <div role="alert" className="rover-session-alert"><p>{
+      error === "WALLET_REQUEST_CANCELLED" ? t("The wallet request was cancelled. Select Review execution conditions to try again.", "ウォレットの操作がキャンセルされました。「実行条件を確認」からやり直せます。")
+      : error === "WALLET_SIGNATURE_FAILED" ? t("The wallet could not sign the request. Check the message below and try again. If no wallet window opens, sign out and sign in again.", "ウォレットで署名できませんでした。下の理由を確認して再試行してください。確認画面が開かない場合は、ログインし直してください。")
+      : error === "NO_SAVED_SESSION" ? t("No saved session yet. Select Review execution conditions to begin.", "保存したセッションはまだありません。「実行条件を確認」から始めてください。")
+      : error === "SESSION_ALREADY_AUTHORIZED" ? t("You have already signed this job. Select Load saved session to continue.", "このJobは署名済みです。「保存したセッションを確認」で続きへ進んでください。")
+      : error === "CAMERA_CONFIGURATION_REQUIRED" ? t("Camera settings could not be loaded. Check the Bridge and camera settings, then retry.", "カメラ設定を読み込めませんでした。Bridgeとカメラ設定を確認して再試行してください。")
+      : error === "SESSION_EXPIRED" ? t("The authorization expired. Prepare a new session and sign again.", "承認の期限が切れています。新しいセッションを準備して署名してください。")
+      : t("The request did not complete. Check the saved session before retrying.", "処理を完了できませんでした。保存したセッションを確認してから再試行してください。")}</p>
+      {/^\w+$/.test(error) && <span className="rover-session-error">{error}</span>}
+      {errorDetail && error === "WALLET_SIGNATURE_FAILED" && <p>{errorDetail}</p>}</div>}
   </section>;
 }

@@ -77,6 +77,19 @@ try {
   await page.goto(base+`/rover?job=${jobId}`,{waitUntil:'domcontentloaded',timeout:240000});
   await page.getByRole('button',{name:'Sign in',exact:true}).first().click();
   await page.getByRole('heading',{name:'Plan this run',exact:true}).waitFor();
+  await page.getByRole('heading',{name:'How to drive this job',exact:true}).waitFor();
+  let signingFailure=4001;
+  await page.route(rpc,async route=>{
+    const body=route.request().postDataJSON();
+    if(body.method==='personal_sign')return route.fulfill({json:{jsonrpc:'2.0',id:body.id,error:{code:signingFailure,message:signingFailure===4001?'User rejected the request.':'Wallet signing temporarily unavailable.'}}});
+    return route.continue();
+  });
+  await page.getByRole('button',{name:'Review execution conditions',exact:true}).click();
+  await page.getByText('WALLET_REQUEST_CANCELLED',{exact:true}).waitFor();
+  signingFailure=-32603;
+  await page.getByRole('button',{name:'Review execution conditions',exact:true}).click();
+  await page.getByText('WALLET_SIGNATURE_FAILED',{exact:true}).waitFor();
+  await page.unroute(rpc);
   assert.equal(await page.getByRole('checkbox').count(),0);
   const settings=page.getByRole('button',{name:'Settings',exact:true});
   await settings.focus();await page.keyboard.down('Space');await page.waitForTimeout(200);await page.keyboard.up('Space');
