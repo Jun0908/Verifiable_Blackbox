@@ -3,6 +3,11 @@ import {useEffect, useState} from "react";
 import {useLanguage} from "@/components/language";
 import {formatAmount, type summarize} from "@/lib/ledger/monthly-demo";
 type Monthly = ReturnType<typeof summarize>;
+const lunarDescriptions: Record<string,string> = {
+  "月面基地への物資搬送":"Supply delivery to the lunar base",
+  "クレーター周辺の巡回":"Crater perimeter patrol",
+  "観測機器の点検":"Scientific instrument inspection",
+};
 export function MonthlyPanel() {
   const {t} = useLanguage();
   const [period,setPeriod] = useState("2026-09");
@@ -26,8 +31,9 @@ export function MonthlyPanel() {
         <div><span>{t("Usage records / counterparties","明細数 / 取引先数")}</span><strong>{data.usageCount} / {data.counterpartyCount}</strong></div></div>
       <div className="ledger-actions ledger-downloads"><a href={`/api/ledger/export?period=${period}&kind=summary`}>{t("Download summary CSV","集計CSVをダウンロード")}</a><a href={`/api/ledger/export?period=${period}&kind=details`}>{t("Download details CSV","明細CSVをダウンロード")}</a></div>
       {!data.rows.length && <p>{t("No sample usage for this month.","この月のサンプル明細は0件です。")}</p>}
-      {data.groups.map(g=><article className="ledger-payment" key={g.counterpartyId}><div className="ledger-actions"><h3>{g.counterpartyName}</h3><strong>{g.amountDisplay} mUSDC · {g.usageCount} {t("records","件")}</strong></div>
-        <details><summary>{t("View usage details","明細を見る")}</summary><div className="ledger-table-wrap"><table><thead><tr><th>ID</th><th>{t("Description","内容")}</th><th>mUSDC</th><th>{t("Evidence reference","根拠参照")}</th></tr></thead><tbody>{data.rows.filter(r=>r.counterpartyId===g.counterpartyId).map(r=><tr key={r.usageId}><td>{r.usageId}</td><td>{r.description}</td><td>{formatAmount(r.amountMinor,r.decimals)}</td><td>{r.evidenceRef}</td></tr>)}</tbody></table></div></details>
+      {data.groups.map(g=><article className="ledger-payment" key={g.counterpartyId}><div className="ledger-actions"><h3>{g.counterpartyId === "sample-c" ? <><span aria-hidden="true">🌕</span> {t("Lunar Relay (fictional)",g.counterpartyName)}</> : g.counterpartyName}</h3><strong>{g.amountDisplay} mUSDC · {g.usageCount} {t("records","件")}</strong></div>
+        {g.counterpartyId === "sample-c" && <p className="ledger-muted">{t("Lunar rover operations · M5 Lunar Rover","月面Rover運用会社 · M5 Lunar Rover")}<br/>{t("The lunar base's little delivery rover.","月面基地の小さな配達員。")}</p>}
+        <details><summary>{t("View usage details","明細を見る")}</summary><div className="ledger-table-wrap"><table><thead><tr><th>ID</th><th>{t("Description","内容")}</th><th>mUSDC</th><th>{t("Evidence reference","根拠参照")}</th></tr></thead><tbody>{data.rows.filter(r=>r.counterpartyId===g.counterpartyId).map(r=><tr key={r.usageId}><td>{r.usageId}</td><td>{r.counterpartyId === "sample-c" ? t(lunarDescriptions[r.description] ?? r.description,r.description) : r.description}</td><td>{formatAmount(r.amountMinor,r.decimals)}</td><td>{r.evidenceRef}</td></tr>)}</tbody></table></div></details>
       </article>)}
     </>}
   </section>;
