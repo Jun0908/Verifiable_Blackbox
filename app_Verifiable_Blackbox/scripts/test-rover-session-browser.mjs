@@ -37,6 +37,7 @@ try {
   await waitFor(async()=>assert.equal((await fetch('http://127.0.0.1:4179/health')).status,200));
   launch(resolve(root,'.tools/foundry-v1.7.1/anvil'+(process.platform==='win32'?'.exe':'')),['--host','127.0.0.1','--port','8557','--chain-id','31337','--silent']);
   await waitFor(()=>client.getChainId());
+  await client.request({method:'anvil_setBalance',params:[provider.address,toHex(10n**19n)]});
   const token=await deploy('MockUSDC',[owner.address]);
   const implementation=await deploy('HackathonAgenticCommerce');
   const core=await deploy('ERC1967Proxy',[implementation,encodeFunctionData({abi:parseAbi(['function initialize(address,address)']),functionName:'initialize',args:[token,owner.address]})]);
@@ -57,6 +58,7 @@ try {
     DEMO_TEE_SIGNER_ADDRESS:tee.address,DEMO_VERIFIER_MODE:'MOCK_TEE',VBB_BRIDGE_URL:bridgeBase,VBB_BRIDGE_TOKEN:bridgeToken};
   // These public test keys are used only by the isolated Anvil chain.
   env.DEMO_PROVIDER_PRIVATE_KEY=toHex(0xb0bn,{size:32});
+  env.DEMO_TEE_PRIVATE_KEY=toHex(0xa11cen,{size:32});
   env.DEMO_RELAYER_PRIVATE_KEY='0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
   for(const file of ['tsconfig.json','next-env.d.ts']) generatedFiles.set(file,await readFile(resolve(web,file),'utf8'));
   launch(process.execPath,[resolve(root,'node_modules/next/dist/bin/next'),'dev','--hostname','127.0.0.1','--port','3017'],{cwd:web,env});
@@ -64,6 +66,7 @@ try {
   browser=await chromium.launch({headless:true,...(process.platform==='win32'?{channel:'msedge'}:{})});
   const page=await browser.newPage({viewport:{width:1440,height:1050}});page.setDefaultTimeout(60000);
   const errors=[];page.on('pageerror',error=>errors.push(error.message));
+  page.on('response',async response=>{if(response.request().method()==='POST'&&response.url().endsWith('/rover/complete')&&response.status()!==200)console.error('Payment response:',await response.text());});
   await page.route('**/api/demo/rover/control',route=>route.fulfill({json:{state:'idle',message:'Test',telemetryFresh:false,motorsRunning:false}}));
   await page.route('**/api/demo/rover/camera**',route=>route.fulfill({status:503,json:{error:'CAMERA_UNAVAILABLE'}}));
   await page.addInitScript(({core,owner,jobId,hash})=>{
@@ -99,6 +102,7 @@ try {
   const forward=page.getByRole('button',{name:'Hold Forward',exact:true});
   await forward.focus();await page.keyboard.down('Space');await page.waitForTimeout(700);await page.keyboard.up('Space');
   await page.getByText('Operation records saved. Stop confirmed.',{exact:true}).waitFor();
+  await page.getByText('Payment completed',{exact:true}).waitFor();
   const executed=JSON.parse(await readFile(resolve(temporary,`sessions/31337-${core.toLowerCase()}/${jobId}.json`),'utf8')).sessions.at(-1);
   assert.equal(executed.phase,'CAPTURED');assert.equal(executed.run.stop.confirmed,true);
   assert.equal(executed.run.forwardPressed,true);
@@ -115,17 +119,21 @@ try {
   const request=async(path,body,headers={})=>fetch(base+path,{method:'POST',headers:{origin:base,'content-type':'application/json',...headers},body:JSON.stringify(body)});
   const access={action:'prepare',chainId:31337,core,jobId,requestId:crypto.randomUUID(),issuedAt:Math.floor(Date.now()/1000),options:{judgmentMode:'SKIP_VIDEO',operation:'FORWARD',durationMs:3000,speed:35}};
   const outsider=privateKeyToAccount(toHex(999n,{size:32}));
-  assert.equal((await request('/api/demo/rover/session',{action:'prepare',access,signature:await outsider.signMessage({message:roverAccessMessage(access)})})).status,403);
+  assert.equal((await request('/api/demo/rover/session',{action:'prepare',access,signature:await outsider.signMessage({message:roverAccessMessage(access)})})).status,409);
   assert.equal((await request('/api/demo/rover/session',{action:'prepare',access},{origin:'http://evil.test'})).status,403);
   const review=await(await request('/api/demo/rover/review',{action:'prepare',jobId})).json();
   assert.equal(review.error,'ROVER_SESSION_PAYMENT_REQUIRED');
   const submitted=await(await request('/api/demo/provider',{action:'submit',jobId,scenario:'success'})).json();
   assert.equal(submitted.error,'ROVER_SESSION_PAYMENT_REQUIRED');
   assert.equal((await request('/api/demo/rover/complete',{jobId})).status,409);
+  const blockBeforeRetry=await client.getBlockNumber({cacheTime:0});
+  const retry=await request('/api/demo/rover/complete',{jobId,sessionId:executed.context.sessionId,signature:executed.authorizationSignature});
+  assert.equal(retry.status,200);
+  assert.equal(await client.getBlockNumber({cacheTime:0}),blockBeforeRetry);
   // Damaged session storage keeps the payment gate closed.
   await writeFile(resolve(temporary,`sessions/31337-${core.toLowerCase()}/${jobId}.json`),'null');
   assert.equal((await(await request('/api/demo/rover/review',{action:'prepare',jobId})).json()).error,'SESSION_RECORD_INVALID');
-  assert.equal((await client.readContract({address:core,abi:erc8183Abi,functionName:'getJob',args:[BigInt(jobId)]})).status,1);
+  assert.equal((await client.readContract({address:core,abi:erc8183Abi,functionName:'getJob',args:[BigInt(jobId)]})).status,3);
   // A stopped VIDEO fixture exercises the additional approval independently of manual driving.
   const videoCreated=await contract(core,erc8183Abi,'createAndFundDemo',[provider.address,evaluator,(await client.getBlock()).timestamp+86400n,ROVER_JOB_DESCRIPTION,hook]);
   const videoJobId=parseEventLogs({abi:erc8183Abi,logs:videoCreated.logs,eventName:'JobCreated'})[0].args.jobId.toString();
@@ -139,7 +147,7 @@ try {
   const videoStored=JSON.parse(await readFile(videoPath,'utf8')),videoRecord=videoStored.sessions.at(-1);
   const time=Math.max(videoContext.issuedAt,Date.now()/1000);
   videoRecord.phase='CAPTURED';
-  videoRecord.run={version:1,request:roverRunRequest(videoContext),phase:'CAPTURED',forwardPressed:false,
+  videoRecord.run={version:1,request:roverRunRequest(videoContext),phase:'CAPTURED',forwardPressed:false,inputs:[],
     operationStartedAt:time,operationEndedAt:time,operationHash:'ab'.repeat(32),
     commands:[{sessionId:videoContext.sessionId,sequence:1,sentAt:time,x:0,y:1,z:0,speed:35,deadman:true,result:'SENT'}],
     stop:{requestedAt:time,confirmed:true,confirmedAt:time},recording:{state:'ERROR',frames:[],error:'RECORDING_UNAVAILABLE'}};
@@ -158,6 +166,7 @@ try {
   assert.equal(await skip.isDisabled(),true);
   assert.equal((await request('/api/demo/rover/session',{action:'prepare-skip',jobId:videoJobId,sessionId:videoContext.sessionId,signature:videoSignature})).status,409);
   videoRecord.run.forwardPressed=true;
+  videoRecord.run.inputs=[{sessionId:videoContext.sessionId,action:'press',sequence:0,receivedAt:time}];
   await writeFile(videoPath,JSON.stringify(videoStored));
   await page.reload({waitUntil:'domcontentloaded'});
   await page.getByRole('button',{name:'Sign in',exact:true}).first().click();
@@ -167,15 +176,18 @@ try {
   assert.equal(await skip.isChecked(),false);await skip.check();
   const approvalButton=page.getByRole('button',{name:'Sign video skip approval',exact:true});
   await approvalButton.click();
-  await page.getByText('Video skip approval saved for this operation record. Payment is not completed by this approval alone.',{exact:true}).waitFor();
+  await page.getByText('Video skip approval saved for this operation record.',{exact:true}).waitFor();
+  await page.getByText('Payment completed',{exact:true}).waitFor();
   const approvedRecord=JSON.parse(await readFile(videoPath,'utf8')).sessions.at(-1);
   assert.ok(approvedRecord.skipApproval.signature);
   assert.deepEqual(approvedRecord.context,videoContext);
   assert.deepEqual(approvedRecord.run,videoRecord.run);
   assert.equal(approvedRecord.authorizationSignature,videoSignature);
   assert.equal(approvedRecord.videoJudgment,'INCONCLUSIVE');
+  assert.equal(approvedRecord.analysis.judgment,'INCONCLUSIVE');
+  assert.equal(approvedRecord.payment.phase,'PAID');
   await page.screenshot({path:resolve(root,'artifacts/rover-session/skip-approval.png'),fullPage:true});
-  assert.equal((await client.readContract({address:core,abi:erc8183Abi,functionName:'getJob',args:[BigInt(videoJobId)]})).status,1);
+  assert.equal((await client.readContract({address:core,abi:erc8183Abi,functionName:'getJob',args:[BigInt(videoJobId)]})).status,3);
   const rawCreated=await contract(core,erc8183Abi,'createAndFundDemo',[provider.address,evaluator,(await client.getBlock()).timestamp+86400n,ROVER_JOB_DESCRIPTION,hook]);
   const rawJobId=parseEventLogs({abi:erc8183Abi,logs:rawCreated.logs,eventName:'JobCreated'})[0].args.jobId.toString();
   const rawAccess={...videoAccess,jobId:rawJobId,requestId:crypto.randomUUID(),issuedAt:Math.floor(Date.now()/1000)};
@@ -193,15 +205,44 @@ try {
   await page.getByRole('button',{name:'Start observation',exact:true}).click();
   await forward.focus();await page.keyboard.down('Space');await page.waitForTimeout(900);await page.keyboard.up('Space');
   await page.getByText('Moved',{exact:true}).waitFor();
+  await page.getByText('Payment completed',{exact:true}).waitFor();
   await page.getByRole('img',{name:"This session's Raw recording",exact:true}).waitFor();
   const rawStored=JSON.parse(await readFile(resolve(temporary,`sessions/31337-${core.toLowerCase()}/${rawJobId}.json`),'utf8')).sessions.at(-1);
   assert.equal(rawStored.analysis.judgment,'MOVING');assert.equal(rawStored.analysis.execution,'ANALYZED');
   assert.equal(rawStored.analysis.recordingSha256,rawStored.run.recording.sha256);
   assert.equal(rawStored.run.forwardPressed,true);
+  assert.equal(rawStored.payment.phase,'PAID');
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
   await page.screenshot({path:resolve(root,'artifacts/rover-session/raw-analysis.png'),fullPage:true});
+  const paidBlock=await client.getBlockNumber({cacheTime:0});
+  await page.reload({waitUntil:'domcontentloaded'});
+  await page.getByRole('button',{name:'Sign in',exact:true}).first().click();
+  await page.getByRole('button',{name:'Load saved session',exact:true}).click();
+  await page.getByText('Payment completed',{exact:true}).waitFor();
+  assert.equal(await client.getBlockNumber({cacheTime:0}),paidBlock);
+  const stillCreated=await contract(core,erc8183Abi,'createAndFundDemo',[provider.address,evaluator,(await client.getBlock()).timestamp+86400n,ROVER_JOB_DESCRIPTION,hook]);
+  const stillJobId=parseEventLogs({abi:erc8183Abi,logs:stillCreated.logs,eventName:'JobCreated'})[0].args.jobId.toString();
+  const stillAccess={...videoAccess,jobId:stillJobId,requestId:crypto.randomUUID(),issuedAt:Math.floor(Date.now()/1000)};
+  const stillPrepared=await(await request('/api/demo/rover/session',{action:'prepare',access:stillAccess,signature:await owner.signMessage({message:roverAccessMessage(stillAccess)})})).json();
+  const stillContext=stillPrepared.record.context;
+  const stillSignature=await owner.signMessage({message:roverAuthorizationMessage(stillContext)});
+  const stillInput={jobId:stillJobId,sessionId:stillContext.sessionId,signature:stillSignature};
+  assert.equal((await request('/api/demo/rover/session',{action:'authorize',...stillInput})).status,200);
+  assert.equal((await request('/api/demo/rover/session/start',{action:'start',...stillInput})).status,200);
+  await waitFor(async()=>{const r=await(await request('/api/demo/rover/session/status',stillInput)).json();assert.equal(r.record.phase,'OPERATING');});
+  await new Promise(r=>setTimeout(r,1000));
+  assert.equal((await request('/api/demo/rover/session/input',{...stillInput,action:'finish',sequence:0})).status,200);
+  await waitFor(async()=>{const r=await(await request('/api/demo/rover/session/status',stillInput)).json();assert.equal(r.record.phase,'CAPTURED');});
+  const stillResult=await(await request('/api/demo/rover/session/analyze',stillInput)).json();
+  assert.equal(stillResult.record.analysis.judgment,'STILL');
+  assert.equal(stillResult.record.run.forwardPressed,false);
+  assert.equal((await(await request('/api/demo/rover/complete',stillInput)).json()).error,'FORWARD_PRESS_REQUIRED');
+  assert.equal((await request('/api/demo/rover/session',{action:'prepare-skip',...stillInput})).status,409);
+  assert.equal((await client.readContract({address:core,abi:erc8183Abi,functionName:'getJob',args:[BigInt(stillJobId)]})).status,1);
+  const balance=await client.readContract({address:token,abi:parseAbi(['function balanceOf(address) view returns(uint256)']),functionName:'balanceOf',args:[provider.address]});
+  assert.equal(balance,BigInt(rawStored.context.budget)*3n);
   assert.deepEqual(errors,[]);
-  console.log(JSON.stringify({ok:true,checks:['owner signatures','hidden settings keyboard and pointer','default reset','persisted authorization','mock Bridge drive and confirmed stop','recorded commands','idempotent start','mobile Japanese','origin and owner rejection','session payment gate','stopped VIDEO fixture additional signature','missing forward press rejection','preserved INCONCLUSIVE and original approval','no physical robot movement or payment']}));
+  console.log(JSON.stringify({ok:true,checks:['owner signatures','hidden settings keyboard and pointer','default reset','persisted authorization','mock Bridge drive and confirmed stop','recorded commands','idempotent start and payment','mobile Japanese','origin and owner rejection','session payment gate','stopped VIDEO fixture additional signature','missing forward press rejection','preserved INCONCLUSIVE and original approval','local Anvil payments only; no hardware movement or Sepolia transfers']}));
 } catch(error) {
   for(const child of children) console.error(child.log());
   throw error;

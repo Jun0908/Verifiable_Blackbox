@@ -1,7 +1,8 @@
 import "server-only";
 import {readFile} from "node:fs/promises";
 import {resolve} from "node:path";
-import {getDeployment} from "../config";
+import {getDeployment, getPublicClient} from "../config";
+import {erc8183Abi} from "@/lib/contracts";
 import {getFundedDemoJob} from "../provider";
 import {RoverSessions} from "./service";
 import {sessionStore} from "./guard";
@@ -20,5 +21,6 @@ export function roverSessions() {
   const deployment = getDeployment();
   return new RoverSessions({store: sessionStore(), evaluator: deployment.evaluator, token: deployment.mockUsdc,
     fundedJob: jobId => getFundedDemoJob(BigInt(jobId)), now: () => Math.floor(Date.now() / 1000),
+    readJob: jobId => getPublicClient().readContract({address: deployment.erc8183, abi: erc8183Abi, functionName: "getJob", args: [BigInt(jobId)]}),
     videoPolicy});
 }

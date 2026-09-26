@@ -1,6 +1,6 @@
 import "server-only";
 import type {Hex} from "viem";
-import {assertApprovalOnlyJob} from "./rover-session/guard";
+import {assertEvidencePayment, type RoverPaymentPermit} from "./rover-session/payment-permit";
 
 import {
   JOB_BUDGET,
@@ -58,8 +58,8 @@ export async function getFundedDemoJob(jobId: bigint) {
   return job;
 }
 
-export async function submitDemoEvidence(evidence: DemoEvidenceV1, onBroadcast?: (hash: Hex) => Promise<void>) {
-  await assertApprovalOnlyJob(evidence.jobId);
+export async function submitDemoEvidence(evidence: DemoEvidenceV1, onBroadcast?: (hash: Hex) => Promise<void>, permit?: RoverPaymentPermit) {
+  await assertEvidencePayment(evidence.jobId, evidenceCommitment(evidence), permit);
   const deployment = getDeployment();
   const publicClient = getPublicClient();
   const job = await getFundedDemoJob(evidence.jobId);

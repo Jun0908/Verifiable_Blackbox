@@ -203,7 +203,7 @@ APIはNext.jsのRoute Handlersで実装している。各実装は [API Route Ha
 | `/api/demo/verify`、`/settle` | サンプル検証・決済の各段階 |
 | `/api/demo/attestation` | Serverがfresh nonceを発行しPhalaへ問い合わせ |
 | `/api/demo/rover/review` | GET:進捗、POST:`prepare`／`verify-and-pay` |
-| `/api/demo/rover/complete` | GET:Funded Job情報。POST:現在は409 `PHYSICAL_MOVEMENT_NOT_VERIFIED`。第11節・T29でServerのセッション照合を必須とする条件付き受付へ変更する |
+| `/api/demo/rover/complete` | GET:Funded・Submitted・Completed Job情報。POST:所有者署名と保存済みセッションを照合し、条件付き決済を開始・再開する |
 | `/api/demo/rover/control` | GET:状態。POST:`activate/drive/release/stop/gripper` |
 | `/api/demo/rover/camera` | GET:設定／JPEG、POST:ON/OFF／接続先設定 |
 
@@ -462,11 +462,11 @@ World認証による開示を追加する場合は、保護対象の映像をpub
 
 ## 11. 動画判定によるRoverの報酬支払い
 
-本節はT25〜T32で追加する設計とする。Phalaのコード・検証policy・接続設定とContractは変更しない。支払いAPIはT29の対象モードの条件付き受付と拒否試験が揃った経路から有効化し、準備できていないモードは409を維持する。
+本節はT25〜T32の実装と確認範囲を示す。PhalaのEvidence形式・検証policyとContractへ、Web側で条件を照合した証拠を接続する。通常とスキップの決済経路を実装し、条件不足は409で拒否する。
 
-T25ではセッション準備・条件付き承認・所有者署名による状態取得と発表者用の隠し設定を実装した。T26では承認後の開始ボタンから前進・静止を実行し、Bridgeの操作記録・録画・停止確認をCAPTUREDまで保存する。動画解析・条件付き決済はT27以降で接続する。新規Rover Jobのdescriptionは`vbb://rover/session-v1`とし、保存データがなくてもセッション検査が必要なJobと判別する。Provider提出・承認・検証・決済の入口は、この種別または保存済みRoverセッションを検出すると専用の決済経路を要求する。
+T25はセッション準備・条件付き承認・所有者署名による状態取得と発表者用の隠し設定を提供する。T26は観測開始後の前ボタン押下・解放を受け付け、Bridgeの操作記録・録画・停止確認を保存する。T27はRaw動画をStegaVARへ送り、T30は操作記録・録画・3択を表示する。T29は条件を照合してEvidence提出・検証・決済へ接続する。新規Rover Jobのdescriptionは`vbb://rover/session-v1`とし、保存データがなくてもセッション検査が必要なJobと判別する。Provider提出・承認・検証・決済の入口は、この種別または保存済みRoverセッションを検出すると専用の決済経路を要求する。
 
-最優先の完了条件は、同じ実行について「前ボタンを押した／押していない」と「今回のRaw動画に対するStegaVARの3択」が画面に表示されることとする。前ボタンのイベント記録、Raw動画の送信・3択表示は追加実装が必要。停止後のスキップ追加承認はT25で実装し、支払いとの接続はT29で行う。T26のCAPTUREDだけではこの完了条件を満たさない。
+同じ実行について「前ボタンを押した／押していない」と「今回のRaw動画に対するStegaVARの3択」を画面に表示する。停止後のスキップ追加承認を支払いへ接続し、動画判定を保持する。模擬Bridge・実StegaVAR・ローカルチェーンで通し確認し、実機・Privy・Sepoliaの有人確認はT32で扱う。
 
 ### 目的と担当範囲
 
@@ -490,7 +490,7 @@ T25ではセッション準備・条件付き承認・所有者署名による�
 
 判定後も隠し設定から「動画認識をスキップ」を選べる。停止確認済み・未決済の同じJobとsessionIdに対し、操作記録のハッシュ・スキップ条件・受取先・金額・有効期限を含む追加承認へ所有者が署名する。Serverが保存済みの前ボタン・前進指令・停止記録を照合し、撮り直しや再走行をせずに支払いへ進む。開始時の署名内容は保持し、追加承認を別レコードとして保存する。
 
-T25の追加承認は`skipApproval`として保存する。`prepare-skip`は開始時の承認署名と停止済み記録を確認し、`authorize-skip`は追加署名を検証する。対象は最後に作成したセッションとし、期限は開始時の承認期限・Job期限を超えない。操作記録のハッシュには前ボタンの有無・送信記録・停止記録・操作時刻を含める。前ボタンの記録がない・false・未確定の場合は追加承認を拒否する。この記録を実際の押下から生成する処理はT26で接続する。
+T25の追加承認は`skipApproval`として保存する。`prepare-skip`は開始時の承認署名と停止済み記録を確認し、`authorize-skip`は追加署名を検証する。対象は最後に作成したセッションとし、期限は開始時の承認期限・Job期限を超えない。操作記録のハッシュには前ボタンの有無・押下と解放・送信記録・停止記録・操作時刻を含める。前ボタンの記録がない・false・未確定の場合は追加承認を拒否する。決済時にも操作区間内の押下イベントを確認する。
 
 承認内容、実行詳細、証拠パッケージにはスキップした事実を残す。「判定できていない」の表示を維持し、MOVINGに置き換えない。解析結果と支払い可否を分け、自動でスキップを有効にしない。
 
@@ -652,11 +652,11 @@ T26の`session/start` POSTはjobId・sessionId・条件付き承認署名と`sta
 
 追加APIでは、Job・sessionIdに紐付く前ボタンの押下・解放、Raw動画のStegaVAR送信、停止確認後の追加スキップ承認を扱う。操作の有無と3択表示は支払いAPIの完成を待たずに提供する。
 
-`complete`はjobId・sessionIdだけを受け取り、Server保存済みデータを検査する。任意のEvidenceや解析成功値を入力して支払う方式にしない。合格時は処理開始・進捗・決済済み結果を返し、条件不足時は409と理由を返す。認証・承認が不正な要求は拒否する。
+`complete`はjobId・sessionId・条件付き承認署名を受け取り、Server保存済みデータを検査する。合格時はEvidence提出・検証・決済を進めて結果を返し、条件不足時は409と理由を返す。認証・承認が不正な要求は拒否する。共通条件を通ったServer内の許可オブジェクトだけが専用決済を呼べる。公開APIから任意のEvidenceや解析成功値を指定してこの許可を作ることはできない。
 
 ### 状態管理と復旧
 
-VIDEOでは`PREPARED → AUTHORIZED → RECORDING → OPERATING → ANALYZING → ELIGIBLE → SUBMITTING → VERIFYING → PAYING → PAID`、SKIP_VIDEOでは`PREPARED → AUTHORIZED → OPERATING → ELIGIBLE → SUBMITTING → VERIFYING → PAYING → PAID`をServerへ永続化する。任意録画の状態は操作・決済の進捗と分けて保持する。支払い条件の失敗は`BLOCKED`または`ERROR`として理由を保存する。操作記録・停止確認の結果はセッション内に保持する。
+セッションの状態は`PREPARED → AUTHORIZED → STARTING → RECORDING → OPERATING → STOPPING → CAPTURED`または`ERROR`として保存する。録画は`run.recording`、3択は`analysis`、決済は`payment`へ分けて保持する。決済は`ELIGIBLE → SUBMITTING → VERIFYING → PAYING → PAID`を保存し、Transactionハッシュを送信直後に保存する。決済中の失敗理由は`payment.error`に残す。条件不足はAPIの理由と画面の保留表示で伝える。
 
 Job単位で排他制御し、並行して操作・決済しない。Roverと使用するカメラにもセッション単位の占有を設け、別Jobや自由操作の混入を防ぐ。緊急停止は占有中も使用可能とする。停止確認と撮影終了後に機器の占有を解放する。処理継続はブラウザの長時間HTTP接続に依存させない。送信済みTransactionはReceiptを確認し、結果が不明なまま再送しない。
 

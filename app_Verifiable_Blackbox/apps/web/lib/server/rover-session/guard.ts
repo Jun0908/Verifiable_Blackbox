@@ -11,7 +11,7 @@ export function sessionStore() {
     {chainId: deployment.chainId, core: deployment.erc8183});
 }
 
-// Session jobs use their dedicated payment gate. Enable that gate in T30.
+// Session jobs use their dedicated payment gate.
 export async function assertApprovalOnlyJob(jobId: bigint) {
   const deployment = getDeployment();
   const [record, job] = await Promise.all([

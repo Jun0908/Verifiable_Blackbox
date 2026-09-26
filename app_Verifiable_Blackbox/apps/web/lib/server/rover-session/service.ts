@@ -10,6 +10,7 @@ type SessionJob = {id: bigint; client: Address; provider: Address; budget: bigin
 export type SessionDependencies = {
   store: RoverSessionStore; evaluator: Address; token: Address;
   fundedJob(jobId: string): Promise<SessionJob>; now(): number;
+  readJob?(jobId: string): Promise<SessionJob>;
   videoPolicy(): Promise<unknown>;
 };
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -116,7 +117,7 @@ export class RoverSessions {
       || Number(input.issuedAt) < this.deps.now() - 300) throw Error("SESSION_ACCESS_EXPIRED_OR_INVALID");
     if (action === "prepare") parseOptions(input.options);
     const access = input as RoverAccess;
-    const job = await this.deps.fundedJob(access.jobId);
+    const job = await (action === "status" && this.deps.readJob ? this.deps.readJob(access.jobId) : this.deps.fundedJob(access.jobId));
     await signatureFor(job.client, roverAccessMessage(access), signature);
     return {access, job};
   }
@@ -187,7 +188,7 @@ export class RoverSessions {
   async status(raw: unknown, signature: unknown) {
     const {access} = await this.access(raw, signature, "status");
     const session = (await this.deps.store.read(access.jobId))?.sessions.at(-1) ?? null;
-    if (session && session.context.expiresAt <= this.deps.now()) return {...session, phase: "EXPIRED" as const};
+    if (session && session.context.expiresAt <= this.deps.now() && !session.payment) return {...session, phase: "EXPIRED" as const};
     return session;
   }
 }

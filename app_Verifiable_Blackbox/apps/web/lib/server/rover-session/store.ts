@@ -33,7 +33,7 @@ export class RoverSessionStore {
       throw Error("SESSION_RECORD_INVALID");
     }
   }
-  async update<T>(jobId: string, action: (record: RoverJobRecord) => Promise<T>): Promise<T> {
+  async update<T>(jobId: string, action: (record: RoverJobRecord, save: () => Promise<void>) => Promise<T>): Promise<T> {
     const path = this.path(jobId);
     await mkdir(resolve(path, ".."), {recursive: true});
     const lock = `${path}.lock`;
@@ -44,10 +44,13 @@ export class RoverSessionStore {
     try {
       const record = await this.read(jobId) ?? {version: 1, kind: "rover-session-v1", ...this.scope,
         core: this.scope.core.toLowerCase(), jobId, sessions: [], requests: {}} satisfies RoverJobRecord;
-      const result = await action(record);
-      const temporary = `${path}.${randomUUID()}.tmp`;
-      await writeFile(temporary, JSON.stringify(record), {flag: "wx", mode: 0o600});
-      await rename(temporary, path);
+      const save = async () => {
+        const temporary = `${path}.${randomUUID()}.tmp`;
+        await writeFile(temporary, JSON.stringify(record), {flag: "wx", mode: 0o600});
+        await rename(temporary, path);
+      };
+      const result = await action(record, save);
+      await save();
       return result;
     } finally {await rmdir(lock);}
   }

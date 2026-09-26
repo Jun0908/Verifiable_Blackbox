@@ -1,4 +1,5 @@
 import {keccak256, toBytes, type Address, type Hex} from "viem";
+import type {DemoEvidenceWire, DemoVerifyResponse} from "./contracts";
 
 export const ROVER_JOB_DESCRIPTION = "vbb://rover/session-v1";
 export type JudgmentMode = "VIDEO" | "SKIP_VIDEO";
@@ -19,6 +20,17 @@ export type RoverSessionRecord = {
   run?: RoverRun; error?: string;
   skipApproval?: {context: RoverSkipContext; signature?: Hex; authorizedAt?: string};
   analysis?: RoverVideoResult;
+  payment?: {
+    phase: "ELIGIBLE" | "SUBMITTING" | "SUBMITTED" | "VERIFYING" | "PAYING" | "PAID";
+    bundle: RoverPaymentBundle; evidence: DemoEvidenceWire;
+    submitTransactionHash?: Hex; completeTransactionHash?: Hex; verification?: DemoVerifyResponse;
+    receiptId?: Hex; error?: string;
+  };
+};
+export type RoverPaymentBundle = {
+  version: 1; context: RoverSessionContext; authorizationSignature: Hex;
+  skipApproval: RoverSessionRecord["skipApproval"] | null; operationRecordHash: Hex;
+  forwardPressed: true; videoRecognitionSkipped: boolean; video: RoverVideoResult;
 };
 export type RoverVideoResult = {
   version: 1; source: "job-recording"; chainId: number; core: Address; jobId: string; sessionId: string;

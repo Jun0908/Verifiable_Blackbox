@@ -1,5 +1,5 @@
 import "server-only";
-import {assertApprovalOnlyJob} from "./rover-session/guard";
+import {assertEvidencePayment, type RoverPaymentPermit} from "./rover-session/payment-permit";
 
 import {randomBytes, createHash} from "node:crypto";
 import {isAddress, isHex, recoverTypedDataAddress, type Hex} from "viem";
@@ -285,8 +285,8 @@ async function verifyWithMock(evidence: DemoEvidenceV1): Promise<DemoVerifyRespo
   };
 }
 
-export async function verifyEvidence(evidence: DemoEvidenceV1) {
-  await assertApprovalOnlyJob(evidence.jobId);
+export async function verifyEvidence(evidence: DemoEvidenceV1, permit?: RoverPaymentPermit) {
+  await assertEvidencePayment(evidence.jobId, evidenceCommitment(evidence), permit);
   const config = getVerifierConfig();
   return config.mode === "PHALA"
     ? verifyWithPhala(evidence, config)

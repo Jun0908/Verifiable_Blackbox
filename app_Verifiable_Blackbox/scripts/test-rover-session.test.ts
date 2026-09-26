@@ -7,6 +7,7 @@ import {privateKeyToAccount} from "viem/accounts";
 import {toHex, type Address} from "viem";
 import {RoverSessions} from "../apps/web/lib/server/rover-session/service.ts";
 import {RoverSessionStore} from "../apps/web/lib/server/rover-session/store.ts";
+import {roverPaymentBundle} from "../apps/web/lib/server/rover-session/payment-gate.ts";
 import {roverAccessMessage, roverAuthorizationMessage, roverRunRequest, roverSkipAuthorizationMessage,
   type RoverAccess, type RoverOptions, type RoverRun} from "../apps/web/lib/rover-session.ts";
 
@@ -236,4 +237,36 @@ test("expired or no longer funded Jobs reject additional approval", async t => {
   await assert.rejects(f.service.authorizeSkip("1", context.sessionId, signature), /JOB_NOT_FUNDED/);
   f.advance(900);
   await assert.rejects(f.service.authorizeSkip("1", context.sessionId, signature), /SKIP_APPROVAL_EXPIRED_OR_INVALID/);
+});
+
+test("payment requires moving Raw analysis or a signed skip while retaining the actual judgment", async t => {
+  const f = await stoppedFixture(t);
+  await f.mutate(record => {
+    const c = record.context, run = record.run!;
+    run.inputs = [{sessionId: c.sessionId, action: "press", sequence: 0, receivedAt: run.operationStartedAt!}];
+    record.analysis = {version: 1, source: "job-recording", chainId: c.chainId, core: c.core, jobId: c.jobId,
+      sessionId: c.sessionId, recordingSha256: null, policyHash: c.policyHash, judgment: "INCONCLUSIVE",
+      execution: "UNAVAILABLE", reason: "RECORDING_UNAVAILABLE", analyzedAt: new Date((c.issuedAt + 4) * 1000).toISOString()};
+  });
+  const read = async () => (await f.store.read("1"))!.sessions.at(-1)!;
+  await assert.rejects(roverPaymentBundle(await read(), f.session.context.issuedAt + 5), /VIDEO_MOVEMENT_REQUIRED/);
+  const approval = await f.prepareSkip();
+  await f.service.authorizeSkip("1", f.session.context.sessionId,
+    await owner.signMessage({message: roverSkipAuthorizationMessage(approval.skipApproval!.context)}));
+  const good = await read();
+  const bundle = await roverPaymentBundle(good, good.context.issuedAt + 5);
+  assert.equal(bundle.videoRecognitionSkipped, true);
+  assert.equal(bundle.video.judgment, "INCONCLUSIVE");
+  for (const change of [
+    (r: typeof good) => {r.run!.forwardPressed = false;},
+    (r: typeof good) => {r.run!.inputs = [];},
+    (r: typeof good) => {r.run!.stop!.confirmed = false;},
+    (r: typeof good) => {r.run!.commands[0].result = "FAILED";},
+    (r: typeof good) => {r.run!.commands[0].speed = 20;},
+    (r: typeof good) => {r.analysis!.sessionId = randomUUID();},
+  ]) {
+    const changed = structuredClone(good); change(changed);
+    await assert.rejects(roverPaymentBundle(changed, good.context.issuedAt + 5));
+  }
+  await assert.rejects(roverPaymentBundle(good, good.context.expiresAt), /SESSION_EXPIRED/);
 });
