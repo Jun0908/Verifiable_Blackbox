@@ -50,6 +50,10 @@ export function createApp({ root, base, mode, operatorCode, clip, bytes, provide
     const redirect = url => { res.writeHead(303, { Location: url }); res.end(); };
     try {
       const url = new URL(req.url, base);
+      if (url.pathname === '/internal/health' && req.method === 'GET') {
+        if (!internalToken || req.headers.origin || !equal(req.headers.authorization || '', `Bearer ${internalToken}`)) throw new HttpError(403, 'INTERNAL_AUTH_REQUIRED');
+        return send(200, {ok: true, service: 'vbb-world-disclosure', base, mode, sandbox, ownersConfigured: allowedOwners.length > 0});
+      }
       if (url.pathname === '/internal/assets' && req.method === 'POST') {
         if (!internalToken || req.headers.origin || !equal(req.headers.authorization || '', `Bearer ${internalToken}`)) throw new HttpError(403, 'INTERNAL_AUTH_REQUIRED');
         let size = 0; const chunks = [];
@@ -66,6 +70,7 @@ export function createApp({ root, base, mode, operatorCode, clip, bytes, provide
         return send(201, {assetId: asset.clip.assetId, sha256: asset.clip.sha256, invitationUrl: `${base}/?asset=${asset.clip.assetId}`});
       }
       if (req.headers.host !== new URL(base).host) throw new HttpError(403, 'Open the configured BASE_URL.');
+      if (url.pathname === '/health' && req.method === 'GET') return send(200, {ok: true, service: 'vbb-world-disclosure', mode, sandbox});
       if (!['GET', 'HEAD', 'POST'].includes(req.method)) throw new HttpError(405, 'Method not allowed');
       const cookies = Object.fromEntries((req.headers.cookie || '').split(';').map(s => s.trim().split('=')));
       // Bound memory and discard expired browser sessions / authorization transactions.

@@ -4,6 +4,7 @@ import {loadEnvFile} from 'node:process';
 import {existsSync} from 'node:fs';
 import {createServer} from 'node:net';
 import {randomBytes} from 'node:crypto';
+import {startLocalWorld} from './world-service.mjs';
 
 const root=resolve(import.meta.dirname,'..');
 loadEnvFile(resolve(root,'.env'));
@@ -59,6 +60,10 @@ try {
   if(!development&&!existsSync(resolve(root,'apps/web/.next-demo/BUILD_ID')))throw Error('Build the demo first: node scripts/start-sepolia-web.mjs --build');
   await freePort(3000);
   const services=[];
+  if(!process.argv.includes('--no-world')) {
+    try {await startLocalWorld({root,webEnv,launch});}
+    catch {console.warn('World disclosure could not start. Check its settings; the Demo will continue.');}
+  }
   if(withRover) {
     await freePort(bridgePort);
     const roverRoot=resolve(process.env.ROVER_PYTHON_ROOT || resolve(root,'../../M5stack_RoverC/rover-python'));
