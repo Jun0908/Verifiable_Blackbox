@@ -98,11 +98,11 @@
 
 依存: T01・T04・T05。GUIへの表示はT06にも依存。
 
-- [ ] CamS3-5MPのハードウェア版確認、board／PSRAM設定、カメラFirmwareのビルドを用意する。
-- [ ] STA接続、JPEG／MJPEG、mDNSを実装する。
-- [ ] `CameraStream`と`WebCamera`で受信・再接続・最新画像保持を実装する。
-- [ ] GUIと単体Webに映像・URL設定・受信ON/OFFを追加し、2秒以上古い映像を消す。
-- [ ] camera APIをアプリ中継でも使えるようにし、カメラ接続からARMを呼ばない。
+- [x] CamS3-5MPのハードウェア版確認、board／PSRAM設定、カメラFirmwareのビルドを用意する。
+- [x] STA接続、JPEG／MJPEG、mDNSを実装する。
+- [x] `CameraStream`と`WebCamera`で受信・再接続・最新画像保持を実装する。
+- [x] GUIと単体Webに映像・URL設定・受信ON/OFFを追加し、2秒以上古い映像を消す。
+- [x] camera APIをアプリ中継でも使えるようにし、カメラ接続からARMを呼ばない。
 
 完了条件: カメラFirmwareがビルドでき、模擬MJPEGで画像更新・切断・再接続・設定保存を確認できる。映像受信停止が走行の停止操作を妨げない。
 
