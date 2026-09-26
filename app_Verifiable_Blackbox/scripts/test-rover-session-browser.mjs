@@ -27,11 +27,14 @@ async function deploy(name,args=[]){const artifact=JSON.parse(await readFile(res
 async function contract(address,abi,functionName,args){return receipt(await wallet.writeContract({address,abi,functionName,args}));}
 
 try {
-  for(const url of [rpc,base,bridgeBase]) {try {await fetch(url,{signal:AbortSignal.timeout(500)});throw Error('TEST_PORT_IN_USE');}catch(error){if(error.message==='TEST_PORT_IN_USE')throw error;}}
+  for(const url of [rpc,base,bridgeBase,'http://127.0.0.1:4179/health']) {try {await fetch(url,{signal:AbortSignal.timeout(500)});throw Error('TEST_PORT_IN_USE');}catch(error){if(error.message==='TEST_PORT_IN_USE')throw error;}}
   await mkdir(resolve(root,'tmp'),{recursive:true});temporary=await mkdtemp(resolve(root,'tmp/rover-browser-'));
   launch(process.platform==='win32'?'py':'python3', [...(process.platform==='win32'?['-3.11']:[]),'-m','tests.serve_job_fixture','--port','8769',
     '--directory',resolve(temporary,'recordings'),'--token',bridgeToken],{cwd:resolve(root,'../M5stack_RoverC/rover-python')});
   await waitFor(async()=>assert.equal((await fetch(bridgeBase+'/status',{headers:{Authorization:`Bearer ${bridgeToken}`}})).status,200));
+  launch(resolve(root,'services/stegavar/.venv',process.platform==='win32'?'Scripts/python.exe':'bin/python'),
+    [resolve(root,'services/stegavar/scripts/inference_server.py'),'--port','4179']);
+  await waitFor(async()=>assert.equal((await fetch('http://127.0.0.1:4179/health')).status,200));
   launch(resolve(root,'.tools/foundry-v1.7.1/anvil'+(process.platform==='win32'?'.exe':'')),['--host','127.0.0.1','--port','8557','--chain-id','31337','--silent']);
   await waitFor(()=>client.getChainId());
   const token=await deploy('MockUSDC',[owner.address]);
@@ -47,7 +50,7 @@ try {
   const created=await contract(core,erc8183Abi,'createAndFundDemo',[provider.address,evaluator,(await client.getBlock()).timestamp+86400n,ROVER_JOB_DESCRIPTION,hook]);
   const jobId=parseEventLogs({abi:erc8183Abi,logs:created.logs,eventName:'JobCreated'})[0].args.jobId.toString();
   const env={...process.env,NEXT_PUBLIC_LOCAL_DEMO:'true',NEXT_PUBLIC_PRIVY_APP_ID:'',NEXT_PUBLIC_PRIVY_CLIENT_ID:'',NEXT_PUBLIC_CHAIN_ID:'31337',NEXT_PUBLIC_RPC_URL:rpc,DEMO_RPC_URL:rpc,
-    DEMO_NEXT_DIST_DIR:'.next-rover-session-test',ROVER_SESSION_DIR:resolve(temporary,'sessions'),DEMO_REVIEW_DIR:resolve(temporary,'reviews'),
+    DEMO_NEXT_DIST_DIR:'.next-rover-session-test',STEGAVAR_URL:'http://127.0.0.1:4179',ROVER_SESSION_DIR:resolve(temporary,'sessions'),DEMO_REVIEW_DIR:resolve(temporary,'reviews'),
     MOCK_USDC_ADDRESS:token,ERC8183_ADDRESS:core,EVIDENCE_HOOK_ADDRESS:hook,EVALUATOR_ADDRESS:evaluator,
     DEMO_PROVIDER_ADDRESS:provider.address,
     DEMO_RELAYER_ADDRESS:owner.address,
@@ -173,6 +176,30 @@ try {
   assert.equal(approvedRecord.videoJudgment,'INCONCLUSIVE');
   await page.screenshot({path:resolve(root,'artifacts/rover-session/skip-approval.png'),fullPage:true});
   assert.equal((await client.readContract({address:core,abi:erc8183Abi,functionName:'getJob',args:[BigInt(videoJobId)]})).status,1);
+  const rawCreated=await contract(core,erc8183Abi,'createAndFundDemo',[provider.address,evaluator,(await client.getBlock()).timestamp+86400n,ROVER_JOB_DESCRIPTION,hook]);
+  const rawJobId=parseEventLogs({abi:erc8183Abi,logs:rawCreated.logs,eventName:'JobCreated'})[0].args.jobId.toString();
+  const rawAccess={...videoAccess,jobId:rawJobId,requestId:crypto.randomUUID(),issuedAt:Math.floor(Date.now()/1000)};
+  const rawPrepared=await(await request('/api/demo/rover/session',{action:'prepare',access:rawAccess,signature:await owner.signMessage({message:roverAccessMessage(rawAccess)})})).json();
+  const rawContext=rawPrepared.record.context;
+  assert.equal((await request('/api/demo/rover/session',{action:'authorize',jobId:rawJobId,sessionId:rawContext.sessionId,
+    signature:await owner.signMessage({message:roverAuthorizationMessage(rawContext)})})).status,200);
+  await page.evaluate(({core,owner,jobId,hash})=>{
+    localStorage.setItem(`vbb-active-job-v1:31337:${core.toLowerCase()}:${owner.toLowerCase()}`,JSON.stringify({version:3,walletAddress:owner,verified:false,
+      job:{jobId,source:'rover',scenario:'success',createTransactionHash:hash,fundTransactionHash:hash}}));
+  },{core,owner:owner.address,jobId:rawJobId,hash:rawCreated.transactionHash});
+  await page.goto(base+`/rover?job=${rawJobId}`,{waitUntil:'domcontentloaded'});
+  await page.getByRole('button',{name:'Sign in',exact:true}).first().click();
+  await page.getByRole('button',{name:'Load saved session',exact:true}).click();
+  await page.getByRole('button',{name:'Start observation',exact:true}).click();
+  await forward.focus();await page.keyboard.down('Space');await page.waitForTimeout(900);await page.keyboard.up('Space');
+  await page.getByText('Moved',{exact:true}).waitFor();
+  await page.getByRole('img',{name:"This session's Raw recording",exact:true}).waitFor();
+  const rawStored=JSON.parse(await readFile(resolve(temporary,`sessions/31337-${core.toLowerCase()}/${rawJobId}.json`),'utf8')).sessions.at(-1);
+  assert.equal(rawStored.analysis.judgment,'MOVING');assert.equal(rawStored.analysis.execution,'ANALYZED');
+  assert.equal(rawStored.analysis.recordingSha256,rawStored.run.recording.sha256);
+  assert.equal(rawStored.run.forwardPressed,true);
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+  await page.screenshot({path:resolve(root,'artifacts/rover-session/raw-analysis.png'),fullPage:true});
   assert.deepEqual(errors,[]);
   console.log(JSON.stringify({ok:true,checks:['owner signatures','hidden settings keyboard and pointer','default reset','persisted authorization','mock Bridge drive and confirmed stop','recorded commands','idempotent start','mobile Japanese','origin and owner rejection','session payment gate','stopped VIDEO fixture additional signature','missing forward press rejection','preserved INCONCLUSIVE and original approval','no physical robot movement or payment']}));
 } catch(error) {

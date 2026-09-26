@@ -9,6 +9,7 @@ import {roverAccessMessage, roverAuthorizationMessage, roverHash, roverOperation
   type RoverSessionRecord} from "@/lib/rover-session";
 import type {ActiveRobotJob} from "@/lib/job-flow";
 import "./rover-session.css";
+import {RoverRecordingPanel} from "./rover-recording-panel";
 
 const defaults = (): RoverOptions => ({judgmentMode: "VIDEO", operation: "FORWARD", durationMs: 3000, speed: 35});
 
@@ -22,6 +23,8 @@ export function RoverSessionPanel({job}: {job: ActiveRobotJob}) {
   const [record, setRecord] = useState<RoverSessionRecord | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
+  const [analyzing, setAnalyzing] = useState(false);
+  const analysisRequested = useRef<string | undefined>(undefined);
   const hold = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const mounted = useRef(false);
   const inFlight = useRef(false);
@@ -54,7 +57,7 @@ export function RoverSessionPanel({job}: {job: ActiveRobotJob}) {
 
   async function post(body: unknown, path = "/api/demo/rover/session") {
     const response = await fetch(path, {method: "POST", headers: {"Content-Type": "application/json"},
-      body: JSON.stringify(body), signal: AbortSignal.timeout(15000)});
+      body: JSON.stringify(body), signal: AbortSignal.timeout(path.endsWith("/analyze") ? 35000 : 15000)});
     const payload = await response.json();
     if (!response.ok) throw Error(payload.error || "SESSION_REQUEST_FAILED");
     return payload.record as RoverSessionRecord | null;
@@ -179,6 +182,20 @@ export function RoverSessionPanel({job}: {job: ActiveRobotJob}) {
     // The component is keyed by wallet and Job creation transaction.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [record?.context.sessionId, record?.phase, record?.authorizationSignature, job.jobId]);
+  async function analyzeRun() {
+    if (!record?.authorizationSignature || analyzing) return;
+    setAnalyzing(true);
+    try {accept(await post({jobId: job.jobId, sessionId: record.context.sessionId, signature: record.authorizationSignature}, "/api/demo/rover/session/analyze"));}
+    catch {if (mounted.current) setError("ANALYSIS_REQUEST_FAILED");}
+    finally {if (mounted.current) setAnalyzing(false);}
+  }
+  useEffect(() => {
+    if (!record?.run || !["CAPTURED", "ERROR"].includes(record.phase) || record.analysis || analysisRequested.current === record.context.sessionId) return;
+    analysisRequested.current = record.context.sessionId;
+    void analyzeRun();
+    // One automatic request per recorded session; retries are explicit.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [record?.context.sessionId, record?.phase, record?.analysis]);
   const authorized = record?.phase === "AUTHORIZED";
   const running = Boolean(record && ["STARTING", "RECORDING", "OPERATING", "STOPPING"].includes(record.phase));
   return <section className="panel rover-session-panel" aria-label={t("Rover session", "Rover実行セッション")}>
@@ -231,6 +248,9 @@ export function RoverSessionPanel({job}: {job: ActiveRobotJob}) {
       </div>}
       {running && <><p role="status">{t("Run in progress", "実行中")}: {record.phase}</p><button onClick={() => void runAction("stop")}>{t("Emergency stop", "緊急停止")}</button></>}
       {record.phase === "CAPTURED" && <p role="status">{t("Operation records saved. Stop confirmed.", "操作記録を保存しました。停止を確認しました。")}</p>}
+      {record.run && <RoverRecordingPanel key={record.context.sessionId} record={record} />}
+      {analyzing && <p role="status">{t("Sending Raw recording to StegaVAR…", "Raw動画をStegaVARへ送信・解析しています…")}</p>}
+      {stopped && !record.analysis && <button disabled={analyzing} onClick={() => void analyzeRun()}>{t("Check video result", "動画判定を確認")}</button>}
       {skipSaved && <p role="status">{t("Video skip approval saved for this operation record. Payment is not completed by this approval alone.", "この操作記録への動画認識スキップ承認を保存しました。この承認だけでは支払いは完了しません。")}</p>}
       {record.phase === "ERROR" && <p role="alert">{t("The run stopped. Check the robot before starting another session.", "実行を停止しました。次のセッションを始める前に機体を確認してください。")}</p>}
       {["EXPIRED", "SUPERSEDED", "ERROR"].includes(record.phase) && <button disabled={busy} onClick={reset}>{t("Prepare a new session", "新しいセッションを準備")}</button>}
