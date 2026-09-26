@@ -2,7 +2,7 @@
 
 作成日: 2026-09-26
 
-進捗: T01〜T10の実装とローカル確認、T07の実Phala／Sepolia接続照合、T11のローカル通し試験、T12の資料・動画・新規cloneでの再現確認を完了。模擬Evidenceによる実Phala検証・Sepolia決済も確認済み。T11の実機操作・Privy承認・実Phala検証・Sepolia決済・Receipt表示を一連で行う有人の通し確認は未完了。結果は [確認記録](internal/VALIDATION.md) に記載し、未確認項目はチェックを残す。T13の台帳データ処理・設定・単体試験を完了。T14のMultiBaas取得API・snapshot保存とJob 1の100.00 mUSDC支払い照合を完了。T15〜T17は実装・確認中。
+進捗: T01〜T10の実装とローカル確認、T07の実Phala／Sepolia接続照合、T11のローカル通し試験、T12の資料・動画・新規cloneでの再現確認を完了。模擬Evidenceによる実Phala検証・Sepolia決済も確認済み。T11の実機操作・Privy承認・実Phala検証・Sepolia決済・Receipt表示を一連で行う有人の通し確認は未完了。結果は [確認記録](internal/VALIDATION.md) に記載し、未確認項目はチェックを残す。T13の台帳データ処理・設定・単体試験を完了。T14のMultiBaas取得API・snapshot保存とJob 1の100.00 mUSDC支払い照合を完了。T15の支払実績ページを完了。T16〜T17は実装・確認中。
 
 [ARCHITECTURE.md](ARCHITECTURE.md)に基づき、開発環境、画面、Contract、Evidence検証、決済、実機操作、支払台帳・月次集計を段階的に実装する。
 
@@ -199,10 +199,10 @@
 
 依存: T14。
 
-- [ ] `/ledger`と共通ナビゲーションの「台帳 / Ledger」を追加する。
-- [ ] 支払一覧、取得範囲・時刻、更新ボタン、照合状態を表示する。支払い総額と照合済み金額を分ける。
-- [ ] 詳細でJob・Evidence・Receipt・送金・Explorerリンクを確認できるようにする。
-- [ ] 共通Header・日英切替とモバイル表示に対応する。
+- [x] `/ledger`と共通ナビゲーションの「台帳 / Ledger」を追加する。
+- [x] 支払一覧、取得範囲・時刻、更新ボタン、照合状態を表示する。支払い総額と照合済み金額を分ける。
+- [x] 詳細でJob・Evidence・Receipt・送金・Explorerリンクを確認できるようにする。
+- [x] 共通Header・日英切替とモバイル表示に対応する。
 
 完了条件: 一つの支払いから根拠まで追え、照合済み・確認待ち・根拠不足・不一致を見分けられる。
 
