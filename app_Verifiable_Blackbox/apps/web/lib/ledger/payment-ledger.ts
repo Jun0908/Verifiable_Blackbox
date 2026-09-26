@@ -36,7 +36,7 @@ export function normalizeEvent(item: MBEvent): LedgerEvent | null {
 
 // Both the event index and the per-transaction receipt API provide Ethereum logs.
 // Receipt logs are decoded locally; no indexed event response is fabricated.
-export function normalizeRawLog(raw: Log, timestamp: string): LedgerEvent | null {
+export function normalizeRawLog(raw: Omit<Log, "transactionIndex">, timestamp: string): LedgerEvent | null {
   if (raw.removed === true) return null;
   if (!address.test(raw.address) || !hash.test(raw.transactionHash) || !hash.test(raw.blockHash)
     || !Array.isArray(raw.topics) || raw.topics.some((topic: unknown) => typeof topic !== "string" || !hash.test(topic))

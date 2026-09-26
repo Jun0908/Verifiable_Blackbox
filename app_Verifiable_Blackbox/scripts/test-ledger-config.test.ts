@@ -28,5 +28,6 @@ test("server configuration excludes credentials from fingerprint", () => {
   assert.notEqual(config.fingerprint,settings({...env,MULTIBAAS_URL:"https://second.multibaas.com"}).fingerprint);
   assert.equal(settings({}).configured,false);
   assert.throws(() => settings({...env,MULTIBAAS_URL:"https://secret@test.multibaas.com"}));
+  assert.throws(() => settings({...env,MULTIBAAS_URL:"https://test.multibaas.com.multibaas.com"}));
   assert.throws(() => settings({...env,LEDGER_CONFIRMATIONS:"0"}));
 });

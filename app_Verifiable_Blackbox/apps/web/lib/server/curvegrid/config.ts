@@ -15,7 +15,7 @@ export function settings(env: NodeJS.ProcessEnv = process.env) {
   if (!input) missing.push("MULTIBAAS_URL");
   else {
     const url = new URL(input);
-    if (url.protocol !== "https:" || !url.hostname.endsWith(".multibaas.com")
+    if (url.protocol !== "https:" || !/^[a-z0-9-]+\.multibaas\.com$/i.test(url.hostname)
       || url.username || url.password || url.search || url.hash
       || !["/", "/api/v0", "/api/v0/"].includes(url.pathname)) throw Error("INVALID_MULTIBAAS_URL");
     baseUrl = url.origin + "/api/v0";

@@ -2,7 +2,7 @@
 
 作成日: 2026-09-26
 
-進捗: T01〜T10の実装とローカル確認、T07の実Phala／Sepolia接続照合、T11のローカル通し試験、T12の資料・動画・新規cloneでの再現確認を完了。模擬Evidenceによる実Phala検証・Sepolia決済も確認済み。T11の実機操作・Privy承認・実Phala検証・Sepolia決済・Receipt表示を一連で行う有人の通し確認は未完了。結果は [確認記録](internal/VALIDATION.md) に記載し、未確認項目はチェックを残す。T13の台帳データ処理・設定・単体試験を完了。T14〜T17は未着手。
+進捗: T01〜T10の実装とローカル確認、T07の実Phala／Sepolia接続照合、T11のローカル通し試験、T12の資料・動画・新規cloneでの再現確認を完了。模擬Evidenceによる実Phala検証・Sepolia決済も確認済み。T11の実機操作・Privy承認・実Phala検証・Sepolia決済・Receipt表示を一連で行う有人の通し確認は未完了。結果は [確認記録](internal/VALIDATION.md) に記載し、未確認項目はチェックを残す。T13の台帳データ処理・設定・単体試験を完了。T14のMultiBaas取得API・snapshot保存とJob 1の100.00 mUSDC支払い照合を完了。T15〜T17は実装・確認中。
 
 [ARCHITECTURE.md](ARCHITECTURE.md)に基づき、開発環境、画面、Contract、Evidence検証、決済、実機操作、支払台帳・月次集計を段階的に実装する。
 
@@ -188,10 +188,10 @@
 
 依存: T13。
 
-- [ ] 個別取引receipt・blockの取得をNext.jsのAPIへ接続する。対象は最大10 Job・関連40取引とする。
-- [ ] 手動更新、重複排除、確認数、取得状態、snapshot保存・復元を実装する。
-- [ ] 未設定・0件・取得失敗・保存済み表示を分ける。
-- [ ] 同一Origin、同時実行・連続取得の抑制、設定が異なるsnapshotの拒否を実装する。
+- [x] 個別取引receipt・blockの取得をNext.jsのAPIへ接続する。対象は最大10 Job・関連40取引とする。
+- [x] 手動更新、重複排除、確認数、取得状態、snapshot保存・復元を実装する。
+- [x] 未設定・0件・取得失敗・保存済み表示を分ける。
+- [x] 同一Origin、同時実行・連続取得の抑制、設定が異なるsnapshotの拒否を実装する。
 
 完了条件: MultiBaasから実支払いを1件以上取得・照合できる。再取得しても増殖せず、障害時にサンプルを実取得として表示しない。
 
