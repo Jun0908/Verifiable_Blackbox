@@ -19,7 +19,7 @@ async function bridge(path: string, body?: unknown): Promise<RoverRun> {
   return response.json();
 }
 
-async function ownedSession(jobId: unknown, sessionId: unknown, signature: unknown): Promise<RoverSessionRecord> {
+export async function ownedSession(jobId: unknown, sessionId: unknown, signature: unknown): Promise<RoverSessionRecord> {
   assertJobId(jobId);
   if (typeof sessionId !== "string") throw Error("INVALID_SESSION_ID");
   const record = (await sessionStore().read(jobId))?.sessions.find(s => s.context.sessionId === sessionId);
@@ -27,6 +27,15 @@ async function ownedSession(jobId: unknown, sessionId: unknown, signature: unkno
   await signatureFor(record.context.client, roverAuthorizationMessage(record.context), signature);
   await signatureFor(record.context.client, roverAuthorizationMessage(record.context), record.authorizationSignature);
   return record;
+}
+
+export async function inputRoverSession(jobId: unknown, sessionId: unknown, signature: unknown, action: unknown, sequence: unknown) {
+  if (!["press", "hold", "release", "finish"].includes(String(action)) || !Number.isSafeInteger(sequence) || Number(sequence) < 0) throw Error("INVALID_INPUT");
+  const record = await ownedSession(jobId, sessionId, signature);
+  if (record.context.expiresAt <= Math.floor(Date.now() / 1000)) throw Error("SESSION_EXPIRED");
+  if (!["STARTING", "RECORDING", "OPERATING"].includes(record.phase)) throw Error("INPUT_WINDOW_CLOSED");
+  await bridge("jobs/input", {sessionId, action, sequence});
+  return {accepted: true};
 }
 
 async function saveRun(session: RoverSessionRecord, run: RoverRun) {

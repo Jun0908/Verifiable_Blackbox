@@ -35,6 +35,8 @@ export type RoverRun = {
   recording: {state: string; frames: Array<{index: number; sha256: string; capturedAt: number; phase: string}>; sha256?: string | null; framesHash?: string; bytes?: number; error?: string};
   operationHash?: string; operationStartedAt?: number; operationEndedAt?: number; error?: string;
   forwardPressed?: boolean | null;
+  inputs?: Array<{sessionId: string; sequence: number; action: "press" | "release" | "finish"; receivedAt: number}>;
+  observationEndsAt?: number;
 };
 export function roverRunRequest(context: RoverSessionContext): RoverRunRequest {
   return {sessionId: context.sessionId, jobId: context.jobId, chainId: context.chainId, core: context.core,
@@ -71,6 +73,7 @@ export function roverSkipUnavailableReason(record: RoverSessionRecord): string |
 
 export function roverOperationRecordHash(run: RoverRun): Hex {
   return roverHash({request: run.request, forwardPressed: run.forwardPressed ?? null,
+    inputs: run.inputs ?? [],
     commands: run.commands, stop: run.stop, operationStartedAt: run.operationStartedAt ?? null,
     operationEndedAt: run.operationEndedAt ?? null, bridgeOperationHash: run.operationHash ?? null});
 }
@@ -94,6 +97,7 @@ export function roverAuthorizationMessage(context: RoverSessionContext) {
     ? "Payment requires successful drive commands, confirmed stop, and MOVING from this session's video."
     : "VIDEO RECOGNITION IS SKIPPED. I authorize payment based on successful drive commands and confirmed stop; recording and video analysis are not required.";
   return ["Verifiable Blackbox — Rover conditional payment v1", condition,
+    "Start recording, then hold Forward to drive. Releasing the button stops the run. An observation with no press does not authorize payment.",
     "A stationary demo does not authorize payment. Phala checks Evidence and Job integrity.",
     `Amount (base units): ${context.budget}`, `Provider: ${context.provider}`,
     `Expires at (Unix): ${context.expiresAt}`, canonicalJson(context)].join("\n");

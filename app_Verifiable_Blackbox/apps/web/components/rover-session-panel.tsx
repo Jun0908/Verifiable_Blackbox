@@ -27,6 +27,10 @@ export function RoverSessionPanel({job}: {job: ActiveRobotJob}) {
   const inFlight = useRef(false);
   const accessRef = useRef<{access: RoverAccess; signature: string} | undefined>(undefined);
   const signatureRef = useRef<string | undefined>(undefined);
+  const inputSequence = useRef(0);
+  const driveTimer = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
+  const driveHeld = useRef(false);
+  const inputChain = useRef<Promise<void>>(Promise.resolve());
   const allowed = authenticated && Boolean(wallet);
   const locked = busy || Boolean(record);
   const stopped = Boolean(record?.run?.stop?.confirmed && ["CAPTURED", "ERROR"].includes(record.phase));
@@ -118,6 +122,35 @@ export function RoverSessionPanel({job}: {job: ActiveRobotJob}) {
     } catch (cause) {if (mounted.current) setError(cause instanceof Error ? cause.message : "SKIP_APPROVAL_FAILED");}
     finally {inFlight.current = false; if (mounted.current) setBusy(false);}
   }
+  function sendInput(action: "press" | "hold" | "release" | "finish") {
+    if (!record?.authorizationSignature) return;
+    const body = {action, sequence: ++inputSequence.current, jobId: job.jobId,
+      sessionId: record.context.sessionId, signature: record.authorizationSignature};
+    inputChain.current = inputChain.current.then(async () => {
+      if (action === "hold" && !driveHeld.current) return;
+      await post(body, "/api/demo/rover/session/input");
+    }).catch(() => {
+      driveHeld.current = false; clearInterval(driveTimer.current);
+      if (mounted.current) setError("INPUT_NOT_ACCEPTED");
+    });
+  }
+  function releaseForward() {
+    if (!driveHeld.current) return;
+    driveHeld.current = false; clearInterval(driveTimer.current); sendInput("release");
+  }
+  function pressForward() {
+    if (!allowed || record?.phase !== "OPERATING" || driveHeld.current) return;
+    driveHeld.current = true; sendInput("press");
+    driveTimer.current = setInterval(() => sendInput("hold"), 150);
+  }
+  useEffect(() => {
+    const release = () => releaseForward();
+    const hidden = () => {if (document.hidden) release();};
+    window.addEventListener("blur", release); document.addEventListener("visibilitychange", hidden);
+    return () => {release(); clearInterval(driveTimer.current); window.removeEventListener("blur", release); document.removeEventListener("visibilitychange", hidden);};
+    // Each phase change releases held input; Bridge also enforces a heartbeat deadline.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [record?.context.sessionId, record?.phase]);
   async function runAction(action: "start" | "stop") {
     if (!record?.authorizationSignature || (inFlight.current && action !== "stop")) return;
     if (action === "start") inFlight.current = true;
@@ -156,9 +189,7 @@ export function RoverSessionPanel({job}: {job: ActiveRobotJob}) {
         onKeyDown={event => {if ([" ", "Enter"].includes(event.key)) {event.preventDefault(); if (!event.repeat) startHold();}}}
         onKeyUp={cancelHold} onContextMenu={event => event.preventDefault()}>⚙</button></div>
     <div className="rover-session-options">
-      <label>{t("Action", "操作")}<select value={options.operation} disabled={locked} onChange={e => {accessRef.current = undefined; setOptions({...options, operation: e.target.value as RoverOptions["operation"]});}}>
-        <option value="FORWARD">{t("Forward", "前進")}</option><option value="STILL">{t("Stationary", "静止")}</option></select></label>
-      <label>{t("Duration (seconds)", "実行時間（秒）")}<input type="number" min="0.5" max="5" step="0.5" value={options.durationMs / 1000} disabled={locked}
+      <label>{t("Maximum drive time (seconds)", "走行上限（秒）")}<input type="number" min="0.5" max="3" step="0.5" value={options.durationMs / 1000} disabled={locked}
         onChange={e => {accessRef.current = undefined; setOptions({...options, durationMs: Math.round(Number(e.target.value) * 1000)});}} /></label>
       <label>{t("Speed", "速度")}<input type="number" min="1" max="50" value={options.speed} disabled={locked}
         onChange={e => {accessRef.current = undefined; setOptions({...options, speed: Number(e.target.value)});}} /></label>
@@ -189,7 +220,15 @@ export function RoverSessionPanel({job}: {job: ActiveRobotJob}) {
         <button disabled={busy} onClick={() => void act("status")}>{t("Check saved state", "保存状態を確認")}</button></div>}
       {authorized && <p role="status">{t("Authorization saved. Driving has not started.", "承認を保存しました。走行は開始していません。")}</p>}
       {(authorized || record.phase === "STARTING") && <button disabled={busy} onClick={() => void runAction("start")}>{record.phase === "STARTING"
-        ? t("Check start request", "開始要求を確認") : record.context.options.operation === "FORWARD" ? t("Start forward run", "前進デモを開始") : t("Start stationary run", "静止デモを開始")}</button>}
+        ? t("Check start request", "開始要求を確認") : t("Start observation", "記録を開始")}</button>}
+      {record.phase === "OPERATING" && <div className="actions">
+        <p>{t("Hold Forward to drive. Release to stop, or finish without pressing.", "前ボタンを押している間だけ走行します。離すと停止します。押さずに記録を終了することもできます。")}</p>
+        <button style={{touchAction: "none"}} onPointerDown={e => {if (e.button !== 0) return; e.currentTarget.setPointerCapture(e.pointerId); pressForward();}}
+          onPointerUp={releaseForward} onPointerCancel={releaseForward} onLostPointerCapture={releaseForward} onBlur={releaseForward}
+          onKeyDown={e => {if ([" ", "Enter"].includes(e.key)) {e.preventDefault(); if (!e.repeat) pressForward();}}}
+          onKeyUp={e => {if ([" ", "Enter"].includes(e.key)) releaseForward();}}>{t("Hold Forward", "前（押している間）")}</button>
+        <button onClick={() => {if (driveHeld.current) releaseForward(); else sendInput("finish");}}>{t("Finish observation", "記録を終了")}</button>
+      </div>}
       {running && <><p role="status">{t("Run in progress", "実行中")}: {record.phase}</p><button onClick={() => void runAction("stop")}>{t("Emergency stop", "緊急停止")}</button></>}
       {record.phase === "CAPTURED" && <p role="status">{t("Operation records saved. Stop confirmed.", "操作記録を保存しました。停止を確認しました。")}</p>}
       {skipSaved && <p role="status">{t("Video skip approval saved for this operation record. Payment is not completed by this approval alone.", "この操作記録への動画認識スキップ承認を保存しました。この承認だけでは支払いは完了しません。")}</p>}

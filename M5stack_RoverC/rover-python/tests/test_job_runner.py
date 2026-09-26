@@ -80,7 +80,21 @@ class JobRunnerTests(unittest.TestCase):
                 "judgmentMode": mode, "operation": operation, "durationMs": 500, "speed": 20, "cameraUrl": "http://camera:81/stream" if mode == "VIDEO" else None,
                 "conditionsHash": "0x" + "2" * 64, "policyHash": "0x" + "3" * 64, "expiresAt": int(time.time()) + 60}
 
-    def finish(self, request):
+    def finish(self, request, manual=True):
+        if manual:
+            deadline = time.monotonic() + 3
+            while self.runner.worker.is_alive() and self.runner.status(request["sessionId"])["phase"] in {"STARTING", "RECORDING"} and time.monotonic() < deadline:
+                time.sleep(0.02)
+            if self.runner.worker.is_alive() and self.runner.status(request["sessionId"])["phase"] == "OPERATING":
+                if request["operation"] == "FORWARD":
+                    self.runner.input(request["sessionId"], "press", 1)
+                    for sequence in range(2, 6):
+                        time.sleep(0.09)
+                        self.runner.input(request["sessionId"], "hold", sequence)
+                    self.runner.input(request["sessionId"], "release", 6)
+                else:
+                    time.sleep(0.35)
+                    self.runner.input(request["sessionId"], "finish", 1)
         self.runner.worker.join(timeout=7)
         self.assertFalse(self.runner.worker.is_alive())
         return self.runner.status(request["sessionId"])
@@ -123,13 +137,14 @@ class JobRunnerTests(unittest.TestCase):
         self.assertEqual(record["phase"], "CAPTURED")
         self.assertFalse(any(event["deadman"] and (event["x"] or event["y"] or event["z"]) for event in record["commands"]))
 
-    def test_video_camera_failure_prevents_arming(self):
+    def test_video_camera_failure_preserves_operation_records(self):
         self.stream.available = False
         request = self.request("VIDEO")
         self.runner.start(request)
         record = self.finish(request)
-        self.assertEqual(record["phase"], "ERROR")
-        self.assertEqual(self.controller.sent, [])
+        self.assertEqual(record["phase"], "CAPTURED")
+        self.assertTrue(record["forwardPressed"])
+        self.assertEqual(record["recording"]["state"], "UNAVAILABLE")
 
     def test_changed_camera_configuration_is_rejected_before_arming(self):
         request = self.request("VIDEO")
@@ -147,14 +162,14 @@ class JobRunnerTests(unittest.TestCase):
         self.assertEqual(record["phase"], "CAPTURED")
         self.assertEqual(record["recording"]["state"], "ERROR")
 
-    def test_camera_dropout_during_video_run_is_incomplete(self):
+    def test_camera_dropout_does_not_discard_operation_record(self):
         request = self.request("VIDEO")
         self.runner.start(request)
         self.wait_phase(request, "OPERATING")
         self.stream.available = False
         record = self.finish(request)
-        self.assertEqual(record["phase"], "ERROR")
-        self.assertEqual(record["error"], "RECORDING_INCOMPLETE")
+        self.assertEqual(record["phase"], "CAPTURED")
+        self.assertTrue(record["forwardPressed"])
         self.assertTrue(record["stop"]["confirmed"])
 
     def test_job_and_free_drive_cannot_take_over_and_camera_settings_are_locked(self):
@@ -206,6 +221,71 @@ class JobRunnerTests(unittest.TestCase):
         with self.assertRaises(BridgeError):
             self.runner.start({**request, "path": "recording.webm"})
         self.assertEqual(self.controller.sent, [])
+
+    def test_no_press_is_false_with_video_and_no_forward_commands(self):
+        request = self.request("VIDEO")
+        self.runner.start(request)
+        self.wait_phase(request, "OPERATING")
+        self.runner.input(request["sessionId"], "finish", 1)
+        record = self.finish(request, manual=False)
+        self.assertIs(record["forwardPressed"], False)
+        self.assertTrue(record["recording"]["frames"])
+        self.assertFalse(any(e["y"] > 0 for e in record["commands"]))
+
+    def test_input_timeout_stops_and_keeps_press_event_as_incomplete(self):
+        request = self.request()
+        request["durationMs"] = 3000
+        self.runner.start(request)
+        self.wait_phase(request, "OPERATING")
+        self.runner.input(request["sessionId"], "press", 1)
+        record = self.finish(request, manual=False)
+        self.assertEqual(record["error"], "INPUT_TIMEOUT")
+        self.assertIsNone(record["forwardPressed"])
+        self.assertEqual(record["inputs"][0]["action"], "press")
+        self.assertTrue(record["stop"]["confirmed"])
+
+    def test_release_closes_input_and_stale_messages_do_not_restart_drive(self):
+        request = self.request()
+        self.runner.start(request)
+        self.wait_phase(request, "OPERATING")
+        self.runner.input(request["sessionId"], "press", 5)
+        with self.assertRaisesRegex(BridgeError, "STALE_INPUT"):
+            self.runner.input(request["sessionId"], "hold", 4)
+        time.sleep(0.1)
+        self.runner.input(request["sessionId"], "release", 6)
+        with self.assertRaisesRegex(BridgeError, "INPUT_WINDOW_CLOSED"):
+            self.runner.input(request["sessionId"], "press", 7)
+        record = self.finish(request, manual=False)
+        self.assertTrue(record["forwardPressed"])
+        self.assertEqual([e["action"] for e in record["inputs"]], ["press", "release"])
+
+    def test_failed_send_keeps_press_event_and_failed_command(self):
+        request = self.request()
+        self.runner.start(request)
+        self.wait_phase(request, "OPERATING")
+        self.controller.send = lambda command: (_ for _ in ()).throw(OSError("offline")) if command.y else 1
+        self.runner.input(request["sessionId"], "press", 1)
+        record = self.finish(request, manual=False)
+        self.assertEqual(record["phase"], "ERROR")
+        self.assertEqual(record["inputs"][0]["action"], "press")
+        self.assertTrue(any(e["result"] == "FAILED" and e["y"] > 0 for e in record["commands"]))
+
+    def test_duration_limit_stops_even_with_held_button(self):
+        request = self.request()
+        self.runner.camera = None
+        self.runner.start(request)
+        self.wait_phase(request, "OPERATING")
+        self.runner.input(request["sessionId"], "press", 1)
+        for sequence in range(2, 20):
+            time.sleep(0.1)
+            try:
+                self.runner.input(request["sessionId"], "hold", sequence)
+            except BridgeError:
+                break
+        record = self.finish(request, manual=False)
+        self.assertEqual(record["phase"], "CAPTURED")
+        self.assertTrue(record["forwardPressed"])
+        self.assertLess(record["operationEndedAt"] - record["operationStartedAt"], 1)
 
 
 if __name__ == "__main__":

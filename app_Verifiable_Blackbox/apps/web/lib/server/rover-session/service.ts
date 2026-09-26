@@ -24,7 +24,7 @@ export function parseOptions(value: unknown): RoverOptions {
   const data = object(value);
   keys(data, ["judgmentMode", "operation", "durationMs", "speed"]);
   if (!["VIDEO", "SKIP_VIDEO"].includes(String(data.judgmentMode)) || !["FORWARD", "STILL"].includes(String(data.operation))
-    || !Number.isInteger(data.durationMs) || Number(data.durationMs) < 500 || Number(data.durationMs) > 5000
+    || !Number.isInteger(data.durationMs) || Number(data.durationMs) < 500 || Number(data.durationMs) > 3000
     || !Number.isInteger(data.speed) || Number(data.speed) < 1 || Number(data.speed) > 50) throw Error("INVALID_SESSION_OPTIONS");
   return data as RoverOptions;
 }

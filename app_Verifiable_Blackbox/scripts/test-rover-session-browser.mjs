@@ -92,10 +92,14 @@ try {
   assert.equal(stored.sessions.at(-1).context.options.judgmentMode,'SKIP_VIDEO');
   assert.equal(stored.sessions.at(-1).phase,'AUTHORIZED');
   assert.equal(stored.sessions[0].phase,'SUPERSEDED');
-  await page.getByRole('button',{name:'Start forward run',exact:true}).click();
+  await page.getByRole('button',{name:'Start observation',exact:true}).click();
+  const forward=page.getByRole('button',{name:'Hold Forward',exact:true});
+  await forward.focus();await page.keyboard.down('Space');await page.waitForTimeout(700);await page.keyboard.up('Space');
   await page.getByText('Operation records saved. Stop confirmed.',{exact:true}).waitFor();
   const executed=JSON.parse(await readFile(resolve(temporary,`sessions/31337-${core.toLowerCase()}/${jobId}.json`),'utf8')).sessions.at(-1);
   assert.equal(executed.phase,'CAPTURED');assert.equal(executed.run.stop.confirmed,true);
+  assert.equal(executed.run.forwardPressed,true);
+  assert.deepEqual(executed.run.inputs.map(e=>e.action),['press','release']);
   assert.ok(executed.run.commands.some(event=>event.result==='SENT'&&event.y===1));
   const duplicate=await(await fetch(bridgeBase+'/jobs/start',{method:'POST',headers:{Authorization:`Bearer ${bridgeToken}`,'content-type':'application/json'},body:JSON.stringify(executed.run.request)})).json();
   assert.equal(duplicate.operationHash,executed.run.operationHash);

@@ -22,6 +22,11 @@ class RoverJobRunner:
         self.active = None
         self.cancelled = threading.Event()
         self.worker = None
+        self.current = None
+        self.input_sequence = -1
+        self.held = False
+        self.input_at = 0.0
+        self.finish_requested = False
 
     def _directory(self, session):
         if not isinstance(session, str) or not re.fullmatch(r"[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}", session):
@@ -47,6 +52,7 @@ class RoverJobRunner:
                 raise BridgeError("SESSION_NOT_FOUND") from None
             if record["phase"] in {"STARTING", "RECORDING", "OPERATING", "STOPPING"} and self.active != session:
                 record.update(phase="ERROR", error="SESSION_INTERRUPTED")
+                record["forwardPressed"] = None
                 self._save(record)
             return record
 
@@ -62,7 +68,7 @@ class RoverJobRunner:
                 or not isinstance(request["core"], str) or not re.fullmatch(r"0x[0-9a-fA-F]{40}", request["core"])
                 or request["judgmentMode"] not in {"VIDEO", "SKIP_VIDEO"}
                 or request["operation"] not in {"FORWARD", "STILL"}
-                or type(request["durationMs"]) is not int or not 500 <= request["durationMs"] <= 5000
+                or type(request["durationMs"]) is not int or not 500 <= request["durationMs"] <= 3000
                 or type(request["speed"]) is not int or not 1 <= request["speed"] <= 50
                 or type(request["expiresAt"]) is not int):
             raise BridgeError("INVALID_RUN_REQUEST")
@@ -82,9 +88,14 @@ class RoverJobRunner:
             self.bridge.claim_job(request["sessionId"])
             try:
                 record = {"version": 1, "request": request, "phase": "STARTING", "createdAt": time.time(),
-                          "commands": [], "stop": None, "recording": {"state": "PENDING", "frames": []}}
+                          "commands": [], "stop": None, "forwardPressed": None, "inputs": [],
+                          "recording": {"state": "PENDING", "frames": []}}
                 self._save(record)
                 self.active = request["sessionId"]
+                self.current = record
+                self.input_sequence = -1
+                self.held = self.finish_requested = False
+                self.input_at = 0.0
                 self.cancelled.clear()
                 response = json.loads(json.dumps(record))
                 self.worker = threading.Thread(target=self._run, args=(record,), name="rover-job", daemon=True)
@@ -94,6 +105,35 @@ class RoverJobRunner:
                 self.active = None
                 self.bridge.release_job(request["sessionId"])
                 raise
+
+    def input(self, session, action, sequence):
+        with self.lock:
+            record = self.current
+            if (self.active != session or not record or record["phase"] != "OPERATING"
+                    or self.finish_requested or self.cancelled.is_set()):
+                raise BridgeError("INPUT_WINDOW_CLOSED")
+            if action not in {"press", "hold", "release", "finish"} or type(sequence) is not int or not 0 <= sequence <= 2**53 - 1:
+                raise BridgeError("INVALID_INPUT")
+            if sequence <= self.input_sequence:
+                raise BridgeError("STALE_INPUT")
+            if action in {"press", "hold"} and record["request"]["operation"] != "FORWARD":
+                raise BridgeError("FORWARD_NOT_AUTHORIZED")
+            if action == "hold" and not self.held:
+                raise BridgeError("PRESS_REQUIRED")
+            if action == "press" and self.held:
+                raise BridgeError("ALREADY_PRESSED")
+            self.input_sequence = sequence
+            self.input_at = time.monotonic()
+            if action != "hold":
+                record["inputs"].append({"sessionId": session, "sequence": sequence, "action": action, "receivedAt": time.time()})
+            if action == "press":
+                self.held = True
+                record["pressedAt"] = time.time()
+            elif action in {"release", "finish"}:
+                self.held = False
+                self.finish_requested = True
+            self._save(record)
+            return {"ok": True, "sequence": sequence}
 
     def stop(self, session):
         with self.lock:
@@ -150,7 +190,7 @@ class RoverJobRunner:
         ended = threading.Event()
         camera_owned = False
         try:
-            # VIDEO acquires camera frames before arming the Rover.
+            # Capture failures are recorded independently of the control result.
             try:
                 if self.camera and (request["judgmentMode"] == "VIDEO" or self.camera.status()["receiving"]):
                     self.camera.claim_job(session)
@@ -163,14 +203,12 @@ class RoverJobRunner:
                     capture.start()
                     if request["judgmentMode"] == "VIDEO":
                         self._wait(0.6, record, check_control=False)
-                        if len(record["recording"]["frames"]) < 3:
-                            raise BridgeError("RECORDING_UNAVAILABLE")
                 elif request["judgmentMode"] == "VIDEO":
                     raise BridgeError("CAMERA_UNAVAILABLE")
                 else:
                     record["recording"]["state"] = "UNAVAILABLE"
-            except Exception:
-                if request["judgmentMode"] == "VIDEO":
+            except Exception as error:
+                if str(error) == "CAMERA_CONFIGURATION_CHANGED":
                     raise
                 record["recording"].update(state="ERROR", error="RECORDING_UNAVAILABLE")
             if self.cancelled.is_set():
@@ -184,13 +222,27 @@ class RoverJobRunner:
             record["phase"] = "OPERATING"
             record["operationStartedAt"] = time.time()
             self._save(record)
-            deadline = time.monotonic() + request["durationMs"] / 1000
+            deadline = time.monotonic() + 8
+            record["observationEndsAt"] = time.time() + 8
             sequence = 0
+            drive_started = None
             while time.monotonic() < deadline:
-                if request["operation"] == "FORWARD":
+                with self.lock:
+                    held, finished, input_at = self.held, self.finish_requested, self.input_at
+                if finished:
+                    break
+                if held and time.monotonic() - input_at > 0.6:
+                    raise BridgeError("INPUT_TIMEOUT")
+                if held:
+                    if drive_started is None:
+                        drive_started = time.monotonic()
+                    if time.monotonic() - drive_started >= request["durationMs"] / 1000:
+                        break
                     sequence += 1
                     self.bridge.drive(control_session, sequence, "forward", request["speed"], owner=session)
-                self._wait(min(0.12, max(0, deadline - time.monotonic())), record)
+                self._wait(min(0.04, max(0, deadline - time.monotonic())), record)
+            with self.lock:
+                self.finish_requested = True
             record["operationEndedAt"] = time.time()
             record["phase"] = "STOPPING"
             self._save(record)
@@ -203,11 +255,10 @@ class RoverJobRunner:
             with self.bridge.lock:
                 if not self.bridge.stop_result or not self.bridge.stop_result.get("confirmed") or self.bridge.state != "idle":
                     raise BridgeError("STOP_UNCONFIRMED")
-                if request["operation"] == "FORWARD" and not any(event["result"] == "SENT" and event["deadman"] and event["y"] > 0 for event in self.bridge.send_events):
-                    raise BridgeError("DRIVE_NOT_SENT")
             if capture:
                 self._wait(0.6, record, check_control=False)
             record["phase"] = "CAPTURED"
+            record["forwardPressed"] = any(event["action"] == "press" for event in record["inputs"])
         except Exception as error:
             record.update(phase="ERROR", error=str(error) if isinstance(error, (BridgeError, ValueError)) else "RUN_FAILED")
         finally:
@@ -220,16 +271,12 @@ class RoverJobRunner:
             if capture:
                 capture.join(timeout=3)
                 if capture.is_alive():
-                    record.update(phase="ERROR", error="RECORDING_SHUTDOWN_FAILED")
-            if record["phase"] == "CAPTURED" and request["judgmentMode"] == "VIDEO":
-                frames = record["recording"]["frames"]
-                if (record["recording"]["state"] != "RECORDED"
-                        or sum(f["phase"] == "RECORDING" for f in frames) < 3
-                        or sum(f["phase"] == "OPERATING" for f in frames) < 3
-                        or sum(f["phase"] == "STOPPING" for f in frames) < 3):
-                    record.update(phase="ERROR", error="RECORDING_INCOMPLETE")
+                    record["recording"].update(state="ERROR", error="RECORDING_SHUTDOWN_FAILED")
+            if record["phase"] == "ERROR":
+                record["forwardPressed"] = None
             record["completedAt"] = time.time()
-            record["operationHash"] = digest({"request": request, "commands": record["commands"], "stop": record["stop"]})
+            record["operationHash"] = digest({"request": request, "commands": record["commands"], "stop": record["stop"],
+                                               "inputs": record["inputs"], "forwardPressed": record["forwardPressed"]})
             try:
                 self._save(record)
             finally:
@@ -238,6 +285,7 @@ class RoverJobRunner:
                 self.bridge.release_job(session)
                 with self.lock:
                     self.active = None
+                    self.current = None
 
     def close(self):
         self.cancelled.set()

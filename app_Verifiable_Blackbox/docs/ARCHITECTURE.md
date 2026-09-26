@@ -558,7 +558,7 @@ VIDEOではServer管理の撮影処理で、前ボタンを押す前から停止
 
 録画を今回のsessionIdと結び付け、Server管理の非公開領域へ保管する。任意のファイルパスや別セッションの動画を支払い用録画として登録するAPIは用意しない。生の録画、解析用フレーム、操作記録、実行ログはGit管理から除外する。閲覧はJob所有者を確認するAPI経由とする。
 
-T26のBridgeは`M5stack_RoverC/rover-python/.rover-sessions/<sessionId>/`へ`run.json`、JPEGフレーム、`recording.mjpeg`を保存する。保存先はServer専用の`ROVER_JOB_RECORDING_DIR`で指定できる。VIDEOでは操作前後それぞれ0.6秒を取得し、各区間と操作中に最低3フレームを要求する。フレームは約10fpsで受信時刻の重複を除外して取得し、録画・フレーム列のSHA-256を保存する。準備時のカメラ接続先を署名条件とpolicyHashへ含め、開始時とBridgeの占有取得時に照合する。録画用スレッドと制御処理を分け、SKIP_VIDEOではカメラがなくても開始できる。
+T26のBridgeは`M5stack_RoverC/rover-python/.rover-sessions/<sessionId>/`へ操作記録・JPEGフレーム・`recording.mjpeg`を保存する。録画開始後に8秒の観測区間を開き、前ボタンの押下・解放を`/jobs/input`で受け付ける。押下中は150ms間隔の入力を受け、解放・走行上限（最大3秒）・600msの入力途絶で停止する。観測完了時にforwardPressedを確定し、中断はnullとする。録画は約10fpsで取得し、録画・フレーム列のハッシュを保存する。区間別フレーム数を制御成功の条件にはしない。録画障害は操作結果と分けて記録する。
 
 追加実装では録画の可否と動作判定をStegaVAR側の3択へ集約する。操作前後0.6秒や区間別3フレームを独立した決済条件にせず、取得できたRaw動画を送り、解析できなければINCONCLUSIVEを返す。固定の長さ・枚数・ROIの細かい調整をAPI接続の開始条件にしない。
 

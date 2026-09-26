@@ -184,6 +184,10 @@ def create_handler(bridge, token, *, serve_web=False, port=8765, camera=None, re
                     return self.reply(202, jobs.start(body))
                 elif self.path == "/jobs/stop" and jobs is not None:
                     result = jobs.stop(body.get("sessionId"))
+                elif self.path == "/jobs/input" and jobs is not None:
+                    if set(body) != {"sessionId", "action", "sequence"}:
+                        raise BridgeError("INVALID_INPUT")
+                    result = jobs.input(body["sessionId"], body["action"], body["sequence"])
                 elif self.path == "/camera" and camera is not None:
                     result = camera.configure(body.get("url"))
                 elif self.path == "/camera/power" and camera is not None:
