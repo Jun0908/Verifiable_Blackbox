@@ -18,7 +18,8 @@ cd rover-python
 ゲームパッド設定は `config/controller.json` に保存します。
 
 Firmwareは `m5stick-rover/include/secrets.h.example` を `secrets.h` にコピーして設定します。
-ビルドは `.venv/Scripts/pio.exe run -d ../m5stick-rover`（rover-pythonから実行）。
+ビルドはルートから `powershell -File scripts/build-rover.ps1`。
+packet・停止条件のC++ホスト試験は `powershell -File scripts/test-firmware.ps1`。
 通常のビルドにuploadやFlash消去は含みません。
 
 カメラはArduino CLIと `esp32:esp32@3.1.0` を使用します。機体版の判別とビルド手順は

@@ -50,11 +50,11 @@
 
 依存: T02。
 
-- [ ] `models.py`、`protocol.py`、`api.py`、`mixer.py`、`control.py`を実装する。
-- [ ] Firmwareと共通の固定packetを使い、encoding・decoding・CRC・flagsを試験する。
-- [ ] 探索、ARM session取得、25Hz送信、最新Telemetry読取、終了時Stopを実装する。
-- [ ] 古いマウス／サーボ入力の再送期限を1秒にし、通信を画面描画から分離する。
-- [ ] CLIのdiscover・status・stopと、条件を明示して実行するpulse・motor-test・servo-testを分ける。
+- [x] `models.py`、`protocol.py`、`api.py`、`mixer.py`、`control.py`を実装する。
+- [x] Firmwareと共通の固定packetを使い、encoding・decoding・CRC・flagsを試験する。
+- [x] 探索、ARM session取得、25Hz送信、最新Telemetry読取、終了時Stopを実装する。
+- [x] 古いマウス／サーボ入力の再送期限を1秒にし、通信を画面描画から分離する。
+- [x] CLIのdiscover・status・stopと、条件を明示して実行するpulse・motor-test・servo-testを分ける。
 
 完了条件: 模擬HTTP／UDPで接続・指令・状態受信・切断を確認できる。別session、CRC不正、古い応答を正常操作として使わない。
 
