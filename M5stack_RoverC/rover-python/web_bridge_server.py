@@ -94,7 +94,8 @@ def create_handler(bridge, token, *, serve_web=False, port=8765, camera=None, re
                 length = int(self.headers.get("Content-Length", "0"))
             except ValueError:
                 length = 0
-            if not 4 <= length <= MAX_RECORDING_BYTES or self.headers.get("Content-Type") != "video/webm":
+            if (not 12 <= length <= MAX_RECORDING_BYTES or self.headers.get("Content-Type") != "video/webm"
+                    or self.headers.get("Transfer-Encoding")):
                 self.close_connection = True
                 return self.reply(400, {"error": "Invalid recording"})
             target = None
@@ -105,6 +106,19 @@ def create_handler(bridge, token, *, serve_web=False, port=8765, camera=None, re
                 if header != b"\x1a\x45\xdf\xa3":
                     self.close_connection = True
                     return self.reply(400, {"error": "Invalid WebM header"})
+                size_byte = self.rfile.read(1)
+                if not size_byte or size_byte[0] == 0:
+                    raise OSError("Invalid EBML header size")
+                width = 9 - size_byte[0].bit_length()
+                size_tail = self.rfile.read(width - 1)
+                size = int.from_bytes(size_byte + size_tail, 'big') & ((1 << (7 * width)) - 1)
+                if len(size_tail) != width - 1 or size > 4096 or 4 + width + size > length:
+                    raise OSError("Invalid EBML header size")
+                ebml = self.rfile.read(size)
+                if len(ebml) != size or b"\x42\x82\x84webm" not in ebml:
+                    self.close_connection = True
+                    return self.reply(400, {"error": "WebM DocType required"})
+                header += size_byte + size_tail + ebml
                 root = Path(recordings_root)
                 root.mkdir(parents=True, exist_ok=True)
                 filename = "rover-" + datetime.now().strftime("%Y%m%d-%H%M%S") + "-" + uuid.uuid4().hex[:8] + ".webm"
@@ -112,7 +126,7 @@ def create_handler(bridge, token, *, serve_web=False, port=8765, camera=None, re
                 with target.open("xb") as output:
                     created = True
                     output.write(header)
-                    remaining = length - 4
+                    remaining = length - len(header)
                     while remaining:
                         chunk = self.rfile.read(min(65536, remaining))
                         if not chunk:

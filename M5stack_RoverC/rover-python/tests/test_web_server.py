@@ -135,7 +135,7 @@ class WebServerTests(unittest.TestCase):
                 result = response.status, json.loads(response.read())
                 connection.close()
                 return result
-            data = b"\x1a\x45\xdf\xa3" + b"test recording" * 6000
+            data = b"\x1a\x45\xdf\xa3\x87\x42\x82\x84webm" + b"test recording" * 6000
             self.assertEqual(upload(data, Authorization="wrong")[0], 403)
             self.assertEqual(upload(data, Origin="https://example.org")[0], 403)
             self.assertEqual(upload(b"not a video")[0], 400)
