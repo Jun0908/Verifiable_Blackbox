@@ -1,0 +1,4 @@
+services/stegavar/patches/*.patch -text
+apps/web/public/stegavar/**/*.json text eol=lf
+apps/web/public/stegavar/*.json text eol=lf
+apps/web/public/stegavar/*.md text eol=lf
