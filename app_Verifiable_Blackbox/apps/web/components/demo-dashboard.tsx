@@ -4,7 +4,7 @@ import {loadDemoState, storeDemoState} from "@/lib/active-job";
 
 import {useCallback, useEffect, useMemo, useState} from "react";
 import {useDemoWallet} from "./wallet-context";
-import {WorldDisclosure} from "./world-disclosure";
+import {RoverVideoResult} from "./rover-video-result";
 import Link from "next/link";
 import {JobProgress} from "./job-progress";
 import {RoverPaymentStatus} from "./rover-payment-status";
@@ -523,14 +523,14 @@ export function DemoDashboard() {
       <article className="metric-card"><span>{t("PROVIDER BALANCE", "提供者の残高")}</span><strong>{status ? formatToken(status.providerBalance) : "—"} <small>mUSDC</small></strong><p>{short(deployment?.provider)}</p></article>
     </section>
 
-    <section className="workspace-grid"><article className="panel flow-panel">
+    <section className="workspace-grid" id="step-3"><article className="panel flow-panel">
       <div className="panel-heading"><div><span className="eyebrow">{t("YOUR JOB", "仕事の状況")}</span><h2>{t("From work to payment", "仕事から支払いまで")}</h2></div><span className="job-pill">{job ? `#${job.jobId}` : t("NO JOB", "仕事なし")}</span></div>
       <JobProgress created={Boolean(job && status && status.status >= 1)} sample={job?.source === "fixture"} operated={job?.source === "rover" ? Boolean(roverRecord?.buttonAuthorization?.pressedAt) || status?.status === 3 : Boolean(status && status.status >= 2)} verified={verified || status?.status === 3} paid={status?.status === 3} />
       <div className="next-action">
         {restoring ? <p>{t("Loading your job…", "仕事を読み込んでいます…")}</p> : !authenticated ? <><p>{t("Sign in to create your first job.", "ログインして仕事を作成してください。")}</p><button onClick={() => login()} disabled={!ready}>{t("Sign in to begin", "ログインして開始")}</button></> : !openJob ? <><h3>{t(status?.status === 3 ? "Ready for the next job?" : "Start a robot job", status?.status === 3 ? "次の仕事を始めますか？" : "ロボットの仕事を始める")}</h3><p>{t("Reserve 100 mUSDC. Pressing Forward pays the Provider once, including a short press. Video results are for reference.", "100 mUSDCを預けます。短い操作でも前ボタンを押した記録でProviderに1回支払います。動画判定は参考結果です。")}</p><button onClick={() => void handleStartRover()} disabled={!canCreate}>{t(job ? "Create new job" : "1. Create job", job ? "新しい仕事を作成" : "1. 仕事を作成")}</button></> : canOperate ? <>
-            <h3>{t(operationEnded ? "Continue robot controls" : "Your robot is next", operationEnded ? "ロボットの操作を続ける" : "次はロボットを操作")}</h3>
-            <p>{t("Tap Forward once to complete this Job and start payment. No minimum hold time.", "前ボタンを一瞬押すとJob完了・支払いへ進みます。長押しは不要です。")}</p>
-          <Link className="primary-link" href={{pathname:"/rover", query:{job:job!.jobId.toString()}}}>{t("2. Operate robot", "2. ロボットを操作")} <span>→</span></Link>
+            <h3>{t(operationEnded ? "Control session ended" : "Your robot is next", operationEnded ? "操作を終了しました" : "次はロボットを操作")}</h3>
+            <p>{operationEnded ? t("Continue with Step 3 below. A brief Forward press is enough.", "下のStep 3へ進んでください。前ボタンは一瞬の押下で十分です。") : t("Tap Forward once, then end controls to continue to Step 3.", "前ボタンを一瞬押し、操作を終了してStep 3へ進みます。")}</p>
+          {!operationEnded && <Link className="primary-link" href={{pathname:"/rover", query:{job:job!.jobId.toString()}}}>{t("2. Operate robot", "2. ロボットを操作")} <span>→</span></Link>}
         </> : <p>{t(job?.source === "fixture" ? "Continue with the payment simulation below." : "Waiting for the job status to update.", job?.source === "fixture" ? "下の支払いシミュレーションを続けてください。" : "仕事の状態の更新を待っています。")}</p>}
       </div>
       {job?.source === "rover" && selectedWallet && <RoverPaymentStatus key={`${selectedWallet.address}:${job.createTransactionHash}`} jobId={job.jobId.toString()} closed={Boolean(status && status.status >= 3)} onRecord={receiveReview} onBusyChange={setReviewBusy} />}
@@ -561,7 +561,6 @@ export function DemoDashboard() {
         <div><dt>{t("Attestation", "実行環境の証明")}</dt><dd>{attestationPath ? <a href={attestationPath} target="_blank" rel="noreferrer">{t("View report", "レポートを見る")} ↗</a> : "—"}</dd></div>
         <div><dt>{t("Job transaction", "仕事の作成取引")}</dt><dd>{explorerLink(job?.createTransactionHash) ? <a href={explorerLink(job?.createTransactionHash)} target="_blank" rel="noreferrer">{short(job?.createTransactionHash)} ↗</a> : <span title={job?.createTransactionHash}>{short(job?.createTransactionHash,10)}</span>}</dd></div>
       </dl>
-      {job?.source === "rover" && <WorldDisclosure key={job.jobId.toString()} jobId={job.jobId.toString()} />}
       <details className="sample-tools"><summary>{t("Verification details", "検証の詳細")}</summary><dl className="proof-list">
         <div><dt>{t("Robot ID in evidence", "証拠内のロボットID")}</dt><dd title={robotId}>{robotId ?? "—"}</dd></div>
         {showRegisteredRobot && <>
@@ -580,5 +579,6 @@ export function DemoDashboard() {
       </dl></details>
       {failureMessage && <div className="tamper-result visible"><span>{t("PAYMENT BLOCKED", "支払い停止")}</span><strong>{t("Evidence rejected", "証拠を拒否")}: {failureMessage}</strong><small>{t("No receipt was issued for job", "領収書は未発行です。仕事")} #{failureJobId}</small></div>}
     </article></section>
+    {job?.source === "rover" && roverRecord?.payment?.phase === "PAID" && <RoverVideoResult key={roverRecord.context.sessionId} record={roverRecord} />}
   </main>;
 }

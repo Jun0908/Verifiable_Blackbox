@@ -71,6 +71,7 @@ try {
   for(const file of ['tsconfig.json','next-env.d.ts']) generatedFiles.set(file,await readFile(resolve(web,file),'utf8'));
   launch(process.execPath,[resolve(root,'node_modules/next/dist/bin/next'),'dev','--webpack','--hostname','127.0.0.1','--port','3017'],{cwd:web,env});
   await waitFor(async()=>{const response=await fetch(base+'/api/demo/config',{signal:AbortSignal.timeout(15000)});assert.equal(response.status,200);assert.equal((await response.json()).chainId,31337);});
+  await fetch(base,{signal:AbortSignal.timeout(240000)});
   browser=await chromium.launch({headless:true,...(process.platform==='win32'?{channel:'msedge'}:{})});
   page=await browser.newPage({viewport:{width:1440,height:1050}});page.setDefaultTimeout(60000);
   const errors=[];page.on('pageerror',error=>errors.push(error.message));
@@ -104,21 +105,31 @@ try {
   assert.equal((await request('/api/demo/rover/session/direct',{jobId,skipVideo:false},{origin:'http://evil.test'})).status,403);
   let reviewCalls=0;
   page.on('request',r=>{if(r.url().includes('/api/demo/rover/review'))reviewCalls++;});
-  await page.getByRole('button',{name:'Return to overview',exact:false}).click();
+  await page.getByRole('button',{name:'End controls & return to Step 3',exact:false}).click();
   await page.getByText('No Forward press has been recorded for this Job. Open robot controls and tap Forward once.',{exact:true}).waitFor();
   assert.equal(await page.getByRole('button',{name:'Verify & pay',exact:true}).count(),0);
   assert.equal(await page.getByRole('button',{name:'Resume saved payment',exact:true}).count(),0);
   await page.getByRole('link',{name:/2\. Operate robot/}).click();await ready();
+  const finishAndPay=async()=>{
+    assert.equal(await page.getByRole('button',{name:'View job video',exact:true}).count(),0);
+    await page.getByRole('button',{name:'End controls & return to Step 3',exact:false}).click();
+    await page.waitForURL(base+'/#step-3');
+    await page.getByRole('button',{name:'Verify & pay',exact:true}).waitFor();
+    assert.match(await page.locator('[aria-current=step]').innerText(),/Verify record/);
+    assert.equal(await page.getByRole('button',{name:'View job video',exact:true}).count(),0);
+    await page.getByRole('button',{name:'Verify & pay',exact:true}).click();
+    await page.getByText('Payment completed',{exact:true}).waitFor();
+    await page.getByRole('button',{name:'View job video',exact:true}).click();
+  };
   await connect();
   for(const name of ['Reverse','Left','Right','Turn left','Turn right']) await tap(name);
   await page.getByRole('button',{name:'Release',exact:true}).click();
   await page.waitForTimeout(200);await tap('Hold to grab');
   assert.equal((await stored(jobId)).buttonAuthorization.pressedAt,undefined);
   await tap('Forward',40);
-  await page.getByText(/Payment completed/).waitFor();
+  assert.equal((await stored(jobId)).payment,undefined);
+  await finishAndPay();
   await page.getByText('Raw recording analyzed by StegaVAR',{exact:true}).waitFor();
-  assert.equal(await forward.isEnabled(),true);
-  await tap('Reverse');
   const first=await stored(jobId);
   assert.ok(first.buttonAuthorization.pressedAt);assert.equal(first.payment.phase,'PAID');
   assert.equal(first.authorizationSignature,undefined);
@@ -130,22 +141,25 @@ try {
     assert.equal((await request('/api/demo/world/disclosure',{jobId,owner:provider.address})).status,409);
     assert.equal((await request('/api/demo/world/disclosure',{jobId,sessionId:'00000000-0000-4000-8000-000000000000'})).status,409);
   }
+  await page.getByRole('link',{name:/Return to robot controls/}).click();
+  await page.getByText('Job complete \u00b7 Forward press recorded',{exact:true}).waitFor();
+  await connect();await tap('Reverse');
   await page.getByRole('button',{name:'Stop and disconnect',exact:true}).click();
   await page.waitForTimeout(500);
   const blockBefore=await client.getBlockNumber({cacheTime:0});
   assert.equal((await request('/api/demo/rover/complete',credentials(first))).status,200);
   assert.equal(await client.getBlockNumber({cacheTime:0}),blockBefore);
-  await page.getByRole('button',{name:'Return to overview',exact:false}).click();
+  await page.getByRole('button',{name:'End controls & return to Step 3',exact:false}).click();
   await page.getByText('Payment completed',{exact:true}).waitFor();
   assert.equal(await page.getByRole('button',{name:'Verify & pay',exact:true}).count(),0);
   assert.equal(await page.getByRole('button',{name:'Resume saved payment',exact:true}).count(),0);
   await page.getByRole('link',{name:/Return to robot controls/}).click();
-  await page.getByText(/Payment completed/).waitFor();
+  await page.getByText('Job complete \u00b7 Forward press recorded',{exact:true}).waitFor();
   assert.equal(await page.getByRole('button',{name:'Connect robot',exact:true}).isEnabled(),true);
   assert.equal(reviewCalls,0);
   await page.reload({waitUntil:'domcontentloaded'});
   await page.getByRole('button',{name:'Sign in',exact:true}).first().click();
-  await page.getByText(/Payment completed/).waitFor();
+  await page.getByText('Job complete \u00b7 Forward press recorded',{exact:true}).waitFor();
   assert.equal(await client.getBlockNumber({cacheTime:0}),blockBefore);
   await mkdir(resolve(root,'artifacts/rover-session'),{recursive:true});
   await page.screenshot({path:resolve(root,'artifacts/rover-session/button-paid.png'),fullPage:true});
@@ -161,26 +175,26 @@ try {
   await connect();
   await page.route('**/api/demo/rover/control',async route=>{const body=route.request().postDataJSON();if(body?.action==='drive')await new Promise(r=>setTimeout(r,800));await route.continue();});
   await tap('Forward',40);
-  await page.getByText(/Payment completed/).waitFor();await page.getByText('Did not move',{exact:true}).waitFor();
+  await finishAndPay();await page.getByText('Did not move',{exact:true}).waitFor();
   const short=await stored(tapId);assert.ok(short.buttonAuthorization.pressedAt);
   assert.equal(short.run.commands.some(c=>c.y>0&&c.result==='SENT'),false);assert.equal(short.analysis.judgment,'STILL');
   await page.unroute('**/api/demo/rover/control');
-  await page.getByRole('button',{name:'Stop and disconnect',exact:true}).click();await page.waitForTimeout(500);
+
   const skipId=await newJob();
   const settings=page.getByRole('button',{name:'Settings',exact:true});
   await settings.focus();await page.keyboard.down('Space');await page.waitForTimeout(1300);await page.keyboard.up('Space');
   await page.getByRole('checkbox',{name:'Skip video recognition',exact:true}).check();await ready();
   await connect();await tap('Forward',40);
-  await page.getByText(/Payment completed/).waitFor();await page.getByText('Skipped',{exact:true}).waitFor();
+  await finishAndPay();await page.getByText('Skipped',{exact:true}).waitFor();
   assert.equal((await stored(skipId)).analysis.execution,'SKIPPED');
-  await page.getByRole('button',{name:'Stop and disconnect',exact:true}).click();await page.waitForTimeout(500);
+
   // Only the isolated inference process is stopped for this outage check.
   const inference=children[1];
   if(process.platform==='win32') await new Promise(done=>{const kill=spawn('taskkill',['/PID',String(inference.pid),'/T','/F'],{windowsHide:true,stdio:'ignore'});kill.on('close',done);});
   else inference.kill();
   const offlineId=await newJob();
   await connect();await tap('Forward',40);
-  await page.getByText(/Payment completed/).waitFor();
+  await finishAndPay();
   await page.getByText('No analysis response',{exact:true}).waitFor();
   const offline=await stored(offlineId);
   assert.equal(offline.payment.phase,'PAID');assert.equal(offline.analysis.judgment,'INCONCLUSIVE');assert.equal(offline.analysis.execution,'UNAVAILABLE');
@@ -191,7 +205,7 @@ try {
   const balance=await client.readContract({address:token,abi:parseAbi(['function balanceOf(address) view returns(uint256)']),functionName:'balanceOf',args:[provider.address]});
   assert.equal(balance,BigInt(first.context.budget)*4n);
   assert.deepEqual(errors,[]);
-  console.log(JSON.stringify({ok:true,checks:['no operation signatures','40ms press payment while recording','full controls before and after payment','no press no payment','Raw recording analysis','early release prevents delayed movement','STILL remains STILL with payment','hidden video skip','receipt reload and payment idempotence','no hardware or Sepolia transactions']}));
+  console.log(JSON.stringify({ok:true,checks:['no operation signatures','40ms press saved without automatic payment','return to Step 3','payment before video viewing','full controls before and after payment','no press no payment','Raw recording analysis','early release prevents delayed movement','STILL remains STILL with payment','hidden video skip','receipt reload and payment idempotence','no hardware or Sepolia transactions']}));
 } catch(error) {
   if(page) {console.error('PAGE:',await page.locator('body').innerText().catch(()=>''));await page.screenshot({path:resolve(root,'tmp/rover-test-failure.png'),fullPage:true}).catch(()=>{});}
   for(const child of children) console.error(child.log());

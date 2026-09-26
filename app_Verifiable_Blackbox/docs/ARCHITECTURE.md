@@ -465,7 +465,9 @@ World認証による開示は第12節に従い、保護対象の映像をpublic�
 
 ### 操作と支払い条件
 
-Job作成時に100 mUSDCを入金し、「前ボタンを押した記録で1回支払う」と表示する。操作画面には前後左右・左右回転・停止・アーム・カメラ・速度選択を表示する。接続後は全操作を使え、前ボタンを一瞬押すとJob完了・支払いへ進む。条件確認・操作用署名・記録開始の操作は要求しない。
+Job作成時に100 mUSDCを入金し、「前ボタンを押した記録で1回支払う」と表示する。操作画面には前後左右・左右回転・停止・アーム・カメラ・速度選択を表示する。接続後は全操作を使え、前ボタンを一瞬押すと作業完了の記録を保存する。条件確認・操作用署名・記録開始の操作は要求しない。
+
+画面は「Step 1: Job作成 → Step 2: Rover操作 → Step 3: 記録を検証 → Step 4: 支払い結果」の順に進む。「操作を終了してStep 3へ」で機体の停止を確認し、`/#step-3`へ戻る。録画終了・動画解析・決済応答を画面遷移の待機条件にしない。Step 3の「検証して支払う」で押下記録を検証し、支払いを実行する。
 
 方向ボタンを押している間だけ動き、離すと停止する。押下の最小時間はなく、1秒の長押しも不要。解放が先に届いた通信遅延時には、遅れて届く走行要求を拒否する。Job完了・支払い中・支払い後も全操作を続けられる。通信断・画面離脱時にも停止する。
 
@@ -480,13 +482,15 @@ Job作成時に100 mUSDCを入金し、「前ボタンを押した記録で1回�
 
 Privyのログイン済みaccess tokenとidentity tokenをServerへ送り、公開JWKSでES256署名・issuer・audience・期限・同一本人を検証する。署名されたEthereum WalletをオンチェーンJobのClientと照合する。アプリの追加秘密鍵や操作前のpersonal_signは不要。Privy Dashboardで「Return user data in an identity token」を有効にする。
 
-`session/direct`は所有者確認後、Job単位のセッションとランダムな操作用tokenを発行する。準備だけでは機体を接続・走行させず、支払いも始めない。機体接続と全方向操作は`rover/control`が担当し、接続後の録画は`recordOnly`で走行を制御せずに行う。前ボタンを押すと`session/start`の`press`が`buttonAuthorization.pressedAt`を保存し、録画終了を待たずに決済へ進む。支払い条件は`forward-button-v1`、新規Jobのdescriptionは`vbb://rover/forward-button-v1`とする。
+`session/direct`は所有者確認後、Job単位のセッションとランダムな操作用tokenを発行する。準備だけでは機体を接続・走行させず、支払いも始めない。機体接続と全方向操作は`rover/control`が担当し、接続後の録画は`recordOnly`で走行を制御せずに行う。前ボタンを押すと`session/start`の`press`が`buttonAuthorization.pressedAt`を保存する。Step 3からの決済は録画終了を待たずに実行できる。支払い条件は`forward-button-v1`、新規Jobのdescriptionは`vbb://rover/forward-button-v1`とする。
 
 操作用tokenは対象Job・sessionIdに固定する。Serverが保存したtokenと同一Originの要求を照合し、開始・入力・記録閲覧・結果取得・決済に使用する。画面を開き直した際はPrivyで所有者を再確認して同じ実行を読み込む。公開Anvil Walletによる認証省略は、明示したローカルモード・loopback RPC・実chainId 31337・固定テストWalletの組合せだけで有効。
 
 ### Raw動画とStegaVAR
 
 通常はBridgeがRaw MJPEGとJPEGフレーム列を保存し、ServerからStegaVARへ送る。CPUのフレーム差分で`MOVING / STILL / INCONCLUSIVE`を返し、Job・sessionId・録画SHA-256・policyHashとともに保存する。前ボタンの記録を動画判定の答えに使わない。動画結果は参考情報として表示し、支払い判定と独立させる。
+
+録画の再生・解析結果・Worldの開示操作は、支払い完了後の「今回の動画を見る」にまとめる。動画コンポーネントと録画フレームは、このボタンを開いてから読み込む。操作用のライブカメラはStep 2で利用できる。
 
 設定アイコンの長押しで「動画認識をスキップ」を選べる。初期値はOFF。スキップ時は解析を呼ばず`INCONCLUSIVE / SKIPPED`、録画や解析が利用できない場合は`INCONCLUSIVE / UNAVAILABLE`と理由を残す。カメラ設定が取得できなくても、操作準備と前進を妨げない。
 
@@ -502,7 +506,8 @@ Bundleのハッシュを`DemoEvidenceV1.imageHash`へ格納し、Provider提出�
 
 ### 配置と確認範囲
 
-- `components/rover-job-controls.tsx`, `rover-control.tsx`: 全方向・アーム・カメラ・速度選択、隠し設定、押下記録、動画結果、支払い結果。
+- `components/rover-job-controls.tsx`, `rover-control.tsx`: 全方向・アーム・カメラ・速度選択、隠し設定、押下記録、Step 3への復帰。
+- `components/rover-payment-status.tsx`, `rover-video-result.tsx`: Step 3の検証・支払い、完了後の動画閲覧。
 - `lib/server/rover-session/owner.ts`: PrivyログインとJob所有者の照合。
 - `lib/server/rover-session/direct.ts`: 署名画面を使わないセッション準備。
 - `rover/control`, `session/start`, `session/status`: 手動操作・押下記録・録画と状態取得。
@@ -511,6 +516,8 @@ Bundleのハッシュを`DemoEvidenceV1.imageHash`へ格納し、Provider提出�
 - `M5stack_RoverC/rover-python/rover/job_runner.py`: 操作を占有しない録画。`web_bridge.py`: 手動操作と解放・通信断時の停止。
 
 模擬Bridge・実StegaVAR・専用Anvilで、短い押下、押下なし、接続中の解放、動画の参考判定、スキップ、支払い再送を確認する。実機・利用者のPrivyログイン・実Phala・Sepolia決済の有人通し確認はT32として残す。
+
+デモは`node scripts/start-sepolia-web.mjs --build`で事前ビルドし、`node scripts/start-sepolia-web.mjs`で起動する。成果物は`.next-demo`に分離し、画面操作中のコンパイルを行わない。開発時は`--dev`を付ける。コードや`NEXT_PUBLIC_*`設定を更新した場合は再ビルドする。
 
 ## 12. Worldによる映像の開示
 

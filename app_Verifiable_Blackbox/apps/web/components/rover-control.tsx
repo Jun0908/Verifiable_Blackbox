@@ -19,7 +19,7 @@ async function command(body: unknown, keepalive = false): Promise<BridgeStatus> 
   return data;
 }
 
-export function RoverControl({onFinished, exitRef, onForwardPressed, onConnected}: {onFinished: (operated: boolean) => void; exitRef: RefObject<(() => Promise<void>) | null>; onForwardPressed?: () => void; onConnected?: () => void}) {
+export function RoverControl({onFinished, exitRef, onForwardPressed, onConnected, returnToStep3 = false}: {onFinished: (operated: boolean) => void; exitRef: RefObject<(() => Promise<void>) | null>; onForwardPressed?: () => void; onConnected?: () => void; returnToStep3?: boolean}) {
   const {t} = useLanguage();
   const [status, setStatus] = useState<BridgeStatus>();
   const [error, setError] = useState("");
@@ -197,6 +197,6 @@ export function RoverControl({onFinished, exitRef, onForwardPressed, onConnected
     </div></div>
     {(error || (session.current && status?.state === "error")) && <div className="rover-feedback error" role="alert">{error === "Stop could not be confirmed. Check the robot." ? t("Stop unconfirmed. Check the robot and retry.", "停止未確認です。ロボットを確認して再試行してください。") : error.includes("network access is blocked") ? t("The bridge cannot access the local network. Restart it with LAN access.", "中継のLAN通信が制限されています。LAN接続を許可して起動し直してください。") : error.includes("Windows") ? t("Close the Windows app, then reconnect.", "Windowsアプリを閉じて再接続してください。") : error.includes("Controls paused") || error.includes("Stale command") ? t("Press a direction again to continue.", "方向ボタンをもう一度押すと続けられます。") : t("Connection lost. Reconnect to continue.", "接続が切れました。再接続してください。")}</div>}
     {exitUnconfirmed && <button className="secondary return-overview" type="button" onClick={() => {stop(); onFinished(false);}}>{t("Return to overview · stop unconfirmed", "概要へ戻る（停止未確認）")} →</button>}
-    <button className="return-overview" type="button" disabled={returning} onClick={() => void finish()}>{returning ? t("Confirming stop…", "停止を確認しています…") : connecting ? t("Cancel connection & return", "接続を中断して概要へ戻る") : canLeaveWithoutStop(session.current, status?.state) ? t("Return to overview", "概要へ戻る") : t("End controls & return to overview", "操作を終了して概要へ戻る")} <span>→</span></button>
+    <button className="return-overview" type="button" disabled={returning} onClick={() => void finish()}>{returning ? t("Confirming stop…", "停止を確認しています…") : connecting ? t("Cancel connection & return", "接続を中断して概要へ戻る") : returnToStep3 ? t("End controls & return to Step 3", "操作を終了してStep 3へ") : canLeaveWithoutStop(session.current, status?.state) ? t("Return to overview", "概要へ戻る") : t("End controls & return to overview", "操作を終了して概要へ戻る")} <span>→</span></button>
   </section>;
 }
