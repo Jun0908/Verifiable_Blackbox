@@ -5,6 +5,7 @@
 #include <WiFi.h>
 #include <WiFiUdp.h>
 #include <Wire.h>
+#include <freertos/semphr.h>
 
 #include "secrets.h"
 #include "wifi_profiles.h"
@@ -12,6 +13,14 @@
 #include "control_protocol.h"
 
 namespace {
+
+SemaphoreHandle_t controlMutex;
+bool safetyTaskReady = false;
+struct ControlGuard {
+  ControlGuard() { xSemaphoreTakeRecursive(controlMutex, portMAX_DELAY); }
+  ~ControlGuard() { xSemaphoreGiveRecursive(controlMutex); }
+};
+#define LOCKED_HANDLER(fn) []() { ControlGuard guard; fn(); }
 
 constexpr uint8_t kRoverAddress = 0x38;
 constexpr int kSdaPin = 0;
@@ -187,7 +196,11 @@ void enterI2cError(const char* reason) {
 }
 
 void sendJson(int statusCode, const String& body) {
+  // Socket writes may block on a slow HTTP peer; never hold the safety mutex.
+  const bool held = xSemaphoreGetMutexHolder(controlMutex) == xTaskGetCurrentTaskHandle();
+  if (held) xSemaphoreGiveRecursive(controlMutex);
   server.send(statusCode, "application/json", body);
+  if (held) xSemaphoreTakeRecursive(controlMutex, portMAX_DELAY);
 }
 
 bool authorized() {
@@ -265,7 +278,7 @@ void handleArm() {
     sendJson(409, "{\"ok\":false,\"error\":\"network switch pending\"}");
     return;
   }
-  if (!roverReady || WiFi.status() != WL_CONNECTED) {
+  if (!safetyTaskReady || !roverReady || WiFi.status() != WL_CONNECTED) {
     sendJson(503, "{\"ok\":false,\"error\":\"rover is not ready\"}");
     return;
   }
@@ -383,7 +396,15 @@ void handleDrive() {
     return;
   }
   diagnosticPulse = true;
-  motorsRunning = true;
+  motorsRunning = false;
+  for (int i = 0; i < 4; ++i) {
+    targetMotors[i] = appliedMotors[i] = static_cast<int8_t>(motors[i]);
+    motorsRunning = motorsRunning || motors[i] != 0;
+  }
+  commandX = commandY = commandZ = 0;
+  lastControlMs = millis();
+  linkWaiting = false;
+  stopReason = kStopNone;
   stopAtMs = millis() + static_cast<uint32_t>(durationMs);
   showState("DIAG GO", YELLOW);
   sendJson(200, "{\"ok\":true,\"state\":\"running\"}");
@@ -479,7 +500,11 @@ void handleDeviceSignature(bool keyOnly) {
     sendJson(503, "{\"error\":\"STOP_COMMAND_FAILED\"}");
     return;
   }
+  // HTTP handlers are serialized on loop(); the safety worker only disarms.
+  // Keep Button A and I2C checks running while the signature response is sent.
+  xSemaphoreGiveRecursive(controlMutex);
   DeviceSignature::request(server, keyOnly);
+  xSemaphoreTakeRecursive(controlMutex, portMAX_DELAY);
 }
 #endif
 
@@ -490,20 +515,20 @@ void startNetworkServices() {
   if (!routesConfigured) {
     const char* headerKeys[] = {"X-Rover-Token"};
     server.collectHeaders(headerKeys, 1);
-    server.on("/status", HTTP_GET, handleStatus);
-    server.on("/arm", HTTP_POST, handleArm);
-    server.on("/disarm", HTTP_POST, handleDisarm);
-    server.on("/stop", HTTP_POST, handleStop);
-    server.on("/config", HTTP_POST, handleConfig);
-    server.on("/drive", HTTP_POST, handleDrive);
-    server.on("/network", HTTP_GET, handleNetworkStatus);
-    server.on("/network", HTTP_POST, handleNetworkSelect);
+    server.on("/status", HTTP_GET, LOCKED_HANDLER(handleStatus));
+    server.on("/arm", HTTP_POST, LOCKED_HANDLER(handleArm));
+    server.on("/disarm", HTTP_POST, LOCKED_HANDLER(handleDisarm));
+    server.on("/stop", HTTP_POST, LOCKED_HANDLER(handleStop));
+    server.on("/config", HTTP_POST, LOCKED_HANDLER(handleConfig));
+    server.on("/drive", HTTP_POST, LOCKED_HANDLER(handleDrive));
+    server.on("/network", HTTP_GET, LOCKED_HANDLER(handleNetworkStatus));
+    server.on("/network", HTTP_POST, LOCKED_HANDLER(handleNetworkSelect));
 #if DEVICE_SIGNATURE_ENABLED
     server.on("/device-signature", HTTP_GET, []() {
       if (authorized()) DeviceSignature::status(server);
     });
-    server.on("/device-signature/key", HTTP_POST, []() { handleDeviceSignature(true); });
-    server.on("/device-signature", HTTP_POST, []() { handleDeviceSignature(false); });
+    server.on("/device-signature/key", HTTP_POST, []() { ControlGuard guard; handleDeviceSignature(true); });
+    server.on("/device-signature", HTTP_POST, []() { ControlGuard guard; handleDeviceSignature(false); });
 #endif
     server.onNotFound(handleNotFound);
     routesConfigured = true;
@@ -721,7 +746,6 @@ void maintainSafety() {
 
 void maintainWifi() {
   if (WiFi.status() == WL_CONNECTED) {
-    wifiProfiles.poll();
     startNetworkServices();
     return;
   }
@@ -737,12 +761,29 @@ void maintainWifi() {
     serverStarted = false;
   }
   showState("WIFI LOST", RED);
-  wifiProfiles.poll();  // No timed wait: Button A and motor safety keep running.
+}
+
+void safetyWorker(void*) {
+  while (true) {
+    {
+      ControlGuard guard;
+      M5.update();
+      if ((armed || motorsRunning) && WiFi.status() != WL_CONNECTED) {
+        disarm("Wi-Fi lost");
+        if (roverReady) recordStop(kStopWifi, "Wi-Fi lost; ARM required");
+      }
+      maintainSafety();
+      processMotorRamp();
+    }
+    vTaskDelay(pdMS_TO_TICKS(5));
+  }
 }
 
 }  // namespace
 
 void setup() {
+  controlMutex = xSemaphoreCreateRecursiveMutex();
+  if (!controlMutex) abort();
   Serial.begin(115200);
   auto config = M5.config();
   M5.begin(config);
@@ -767,18 +808,28 @@ void setup() {
     showState("READY", GREEN);
     Serial.println("READY: DISARMED");
   }
+  safetyTaskReady = xTaskCreatePinnedToCore(safetyWorker, "rover-safety", 6144,
+      nullptr, 2, nullptr, 1) == pdPASS;
 }
 
 void loop() {
-  M5.update();
-  processUsbNetworkCommand();
-  maintainWifi();
+  {
+    ControlGuard guard;
+    processUsbNetworkCommand();
+  }
+  wifiProfiles.poll(); // Network retries cannot block the independent stop task.
+  {
+    ControlGuard guard;
+    maintainWifi();
+  }
   if (WiFi.status() == WL_CONNECTED && serverStarted) {
     server.handleClient();
+    ControlGuard guard;
     processUdp();
   }
-  maintainSafety();
-  processMotorRamp();
-  sendTelemetry();
+  {
+    ControlGuard guard;
+    sendTelemetry();
+  }
   delay(2);
 }
