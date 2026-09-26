@@ -1,47 +1,66 @@
-# M5Stack RoverC — Verifiable Blackbox
+# M5Stack RoverC Pro Remote
 
-M5StickC Plus2 / RoverC ProをローカルLANから操作します。設計は
-[ARCHITECTURE.md](ARCHITECTURE.md)、進捗は[TASKS.md](TASKS.md)を参照してください。
+**Drive a Rover and operate its gripper and camera over Wi-Fi.**
 
-## セットアップ
+[日本語版](README.ja.md)
 
-Windows / Python 3.11以降で `powershell -ExecutionPolicy Bypass -File setup.ps1`。
-依存は `rover-python/requirements*.txt` に固定しています。セットアップは実機へ接続・書込みしません。
-
-```powershell
-cd rover-python
-.venv/Scripts/python.exe -m unittest discover -s tests -v
+```mermaid
+flowchart LR
+    PC[PC / Web and GUI] <-->|Wi-Fi| Stick[M5StickC Plus2]
+    Stick <-->|I2C| Rover[RoverC Pro]
+    Camera[Unit CamS3-5MP] -->|Video| PC
 ```
 
-`rover-python/.env.example` を `.env` へコピーし、探索したURLと機体tokenを設定します。
-`config/*.example.json` はPC側設定のひな形です。通常の設定は `config/rover.json`、
-ゲームパッド設定は `config/controller.json` に保存します。
+Supports forward, backward, sideways and diagonal movement, rotation, gripper control, live video, and Web recording. The interface supports Japanese and English, and the desktop GUI also supports USB gamepads.
 
-Firmwareは `m5stick-rover/include/secrets.h.example` を `secrets.h` にコピーして設定します。
-ビルドはルートから `powershell -File scripts/build-rover.ps1`。
-packet・停止条件のC++ホスト試験は `powershell -File scripts/test-firmware.ps1`。
-通常のビルドにuploadやFlash消去は含みません。
+## What you need
 
-カメラはArduino CLI 1.5.1と `esp32:esp32@3.1.0` を使用します。
-[機体版の判別とビルド手順](camera-firmware/README.md)を確認してください。
+| Equipment | Purpose |
+|---|---|
+| [M5StickC Plus2](https://shop.m5stack.com/products/m5stickc-plus2-esp32-mini-iot-development-kit) + [RoverC Pro](https://shop.m5stack.com/products/roverc-prow-o-m5stickc) | Controller and robot base. The gripper is included with the base. |
+| PC, USB data cable, and 2.4 GHz Wi-Fi | Setup, flashing, and control. Connect the PC and devices to the same LAN. |
+| [Unit CamS3-5MP](https://shop.m5stack.com/products/unit-cams3-wi-fi-camera-5mp) | Optional video. Also requires Grove2USB-C, a cable, and a 5 V power supply. |
+| USB gamepad | Optional. Mouse controls also work. |
 
-## 起動
+The target controller is the Plus2. Replacement with an M5StickS3 has not been validated.
 
-- 単体Web：`start_rover_web.cmd`。画面の「接続」でARMします。
-- GUI：`rover-python/start_rover_gui.cmd`。起動後に探索・接続・ARMします。
-- [Home／HotspotとUSB復旧](docs/NETWORK.md)
-- [Blackbox接続と模擬API試験](docs/BLACKBOX.md)
-- [停止中のDevice署名](docs/DEVICE_SIGNATURE.md)
-- [実機設定とT12確認チェックリスト](docs/HARDWARE_CHECKLIST.md)
-- [検証結果と未確認項目](docs/VALIDATION.md)
+## Initial setup
 
-ブラウザ試験を実行する前に `.venv/Scripts/python.exe -m playwright install chromium` を実行してください。
-全Python試験はloopbackと模擬入力を使用します。GUIを直接起動することとは区別してください。
-Web・GUI・Blackboxは一つずつ使用し、終了時はStopで切断します。
+Use Python 3.11 or newer. On Windows, run `setup.ps1`. On macOS / Linux, create a virtual environment in `rover-python` and install dependencies from `requirements.txt`.
 
-モーター値・サーボ角度は設定値であり、物理動作の測定ではありません。
-操作・停止・映像・機体署名からEvidenceや支払いを自動生成しません。
-秘密設定、録画、鍵・Flash backup、ログはGit対象外です。
+1. Connect and power the Rover and camera. Turn on the Rover's **base power switch** as well.
+2. Set Wi-Fi credentials and a shared API token in each device's `secrets.h`, then flash the firmware through the correct USB port. Preserve existing settings and signature keys.
+3. Set the Rover URL and matching token in `rover-python/.env`, then check the connection. For initial movement checks, raise the wheels and clear the area around the gripper.
 
-既存の同プロジェクトのRover実装を基に、提出用の設計に合わせて移植・検証しています。
-過去の実機試験結果は、この版の実機確認として引き継ぎません。
+## Launch
+
+Use these commands after initial configuration and firmware flashing. Run only one control interface at a time.
+
+| OS | Standalone Web | GUI |
+|---|---|---|
+| Windows (project root) | `start_rover_web.cmd` | `rover-python/start_rover_gui.cmd` |
+| macOS / Linux (inside `rover-python`) | `.venv/bin/python web_bridge_server.py --web` | `.venv/bin/python app.py` |
+
+On macOS / Linux, create the virtual environment on that PC and install `requirements.txt`; do not reuse a Windows `.venv`. Select Wi-Fi manually through the OS. Validation has used Windows; macOS / Linux remain untested.
+
+For Web controls, open `http://127.0.0.1:8765/` and **click Connect robot to arm**. The GUI automatically discovers, connects to, and arms the Rover after launch.
+
+## Basic controls
+
+- **Web driving:** Hold a direction button to move; release it to stop. **Stop** disconnects.
+- **Gripper:** Click **Release** to open, or hold **Hold to grab** to close gradually. Releasing the button stops further closing.
+- **Camera:** Set `http://<camera-ip>:81/stream` in **Camera settings**.
+- **Recording:** Use Record ON / OFF to record and save to `rover-python/recordings/`. Wait for saving to finish before closing the tab.
+- **Stop:** Use the on-screen Stop button or M5StickC Button A. Confirm the Rover has stopped before exiting.
+
+On Windows, use `start_rover_home.cmd` / `start_rover_hotspot.cmd` to switch between Home and Hotspot. Both devices need the Wi-Fi settings, and the network profiles must be saved in Windows.
+
+## Related files
+
+- [ARCHITECTURE.md](ARCHITECTURE.md): Structure, communication, and stop handling.
+- `docs/TASKS.md`: Local task tracking (excluded from Git).
+- [Camera README](camera-firmware/README.md): Hardware revisions and build settings.
+- `setup.ps1` / `scripts/`: Windows setup, builds, and validation.
+- `rover-python/preflight.py`: Configuration checks. Add `--probe` to read device status.
+
+Blackbox integration and P-256 signing while stopped are also available. Driving or signing alone does not trigger payment.

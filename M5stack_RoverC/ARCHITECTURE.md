@@ -225,4 +225,4 @@ Bridgeは`physicalMovementVerified=false`、`paymentEnabled=false`を返し、�
 
 ## 10. 実装計画
 
-[TASKS.md](TASKS.md)に、Firmware・Python・操作画面・カメラ・ネットワーク・署名・アプリ接続・実機試験のタスクと完了条件を定義する。
+ローカルの`docs/TASKS.md`（Git対象外）に、Firmware・Python・操作画面・カメラ・ネットワーク・署名・アプリ接続・実機試験のタスクと完了条件を定義する。
