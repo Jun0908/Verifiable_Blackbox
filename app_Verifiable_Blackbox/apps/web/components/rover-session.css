@@ -1,4 +1,6 @@
 .rover-session-panel { margin: 24px 0; }
+.rover-forward-button { display: block; width: 100%; min-height: 150px; margin: 24px 0 12px; font-size: 36px; touch-action: none; user-select: none; }
+.rover-forward-button:active { transform: scale(.99); }
 .rover-session-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .rover-session-heading h2 { margin: 0; }
 .rover-session-settings { min-width: 44px; min-height: 44px; touch-action: none; user-select: none; }

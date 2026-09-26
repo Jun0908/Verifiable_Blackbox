@@ -106,6 +106,16 @@ class JobRunnerTests(unittest.TestCase):
                 self.fail("Phase not reached: " + phase)
             time.sleep(0.02)
 
+    def test_button_control_drives_when_camera_configuration_is_unavailable(self):
+        request = self.request("VIDEO")
+        request.update(buttonControl=True, cameraUrl="")
+        self.runner.start(request)
+        record = self.finish(request)
+        self.assertEqual(record["phase"], "CAPTURED")
+        self.assertEqual(record["recording"]["state"], "ERROR")
+        self.assertTrue(any(event["result"] == "SENT" and event["y"] == 1 for event in record["commands"]))
+        self.assertTrue(record["stop"]["confirmed"])
+
     def test_skip_runs_without_camera_and_records_sent_commands_and_stop_response(self):
         self.runner.camera = None
         request = self.request()

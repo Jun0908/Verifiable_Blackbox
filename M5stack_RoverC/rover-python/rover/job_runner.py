@@ -58,7 +58,9 @@ class RoverJobRunner:
 
     def start(self, request):
         required = {"sessionId", "jobId", "chainId", "core", "judgmentMode", "operation", "durationMs", "speed", "cameraUrl", "conditionsHash", "policyHash", "expiresAt"}
-        if not isinstance(request, dict) or set(request) != required:
+        if not isinstance(request, dict) or set(request) not in (required, required | {"buttonControl"}):
+            raise BridgeError("INVALID_RUN_REQUEST")
+        if "buttonControl" in request and request["buttonControl"] is not True:
             raise BridgeError("INVALID_RUN_REQUEST")
         if request["judgmentMode"] == "VIDEO" and not isinstance(request["cameraUrl"], str):
             raise BridgeError("CAMERA_CONFIGURATION_REQUIRED")
@@ -220,14 +222,14 @@ class RoverJobRunner:
                     self._save(record)
                     capture = threading.Thread(target=self._capture, args=(record, ended), name="rover-recording", daemon=True)
                     capture.start()
-                    if request["judgmentMode"] == "VIDEO":
+                    if request["judgmentMode"] == "VIDEO" and not request.get("buttonControl"):
                         self._wait(0.6, record, check_control=False)
                 elif request["judgmentMode"] == "VIDEO":
                     raise BridgeError("CAMERA_UNAVAILABLE")
                 else:
                     record["recording"]["state"] = "UNAVAILABLE"
             except Exception as error:
-                if str(error) == "CAMERA_CONFIGURATION_CHANGED":
+                if str(error) == "CAMERA_CONFIGURATION_CHANGED" and not request.get("buttonControl"):
                     raise
                 record["recording"].update(state="ERROR", error="RECORDING_UNAVAILABLE")
             if self.cancelled.is_set():

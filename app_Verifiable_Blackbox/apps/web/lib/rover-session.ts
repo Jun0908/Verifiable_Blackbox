@@ -2,6 +2,7 @@ import {keccak256, toBytes, type Address, type Hex} from "viem";
 import type {DemoEvidenceWire, DemoVerifyResponse} from "./contracts";
 
 export const ROVER_JOB_DESCRIPTION = "vbb://rover/session-v1";
+export const ROVER_BUTTON_JOB_DESCRIPTION = "vbb://rover/forward-button-v1";
 export type JudgmentMode = "VIDEO" | "SKIP_VIDEO";
 export type RoverOptions = {judgmentMode: JudgmentMode; operation: "FORWARD" | "STILL"; durationMs: number; speed: number};
 export type RoverAccess = {
@@ -9,6 +10,7 @@ export type RoverAccess = {
   requestId: string; issuedAt: number; options?: RoverOptions;
 };
 export type RoverSessionContext = {
+  paymentPolicy?: "forward-button-v1";
   version: 1; chainId: number; core: Address; evaluator: Address; token: Address;
   jobId: string; client: Address; provider: Address; budget: string; jobExpiresAt: string;
   sessionId: string; nonce: Hex; issuedAt: number; expiresAt: number;
@@ -17,6 +19,8 @@ export type RoverSessionContext = {
 export type RoverSessionRecord = {
   context: RoverSessionContext; phase: "PREPARED" | "AUTHORIZED" | "SUPERSEDED" | "EXPIRED" | "STARTING" | "RECORDING" | "OPERATING" | "STOPPING" | "CAPTURED" | "ERROR";
   authorizationSignature?: Hex; authorizedAt?: string;
+  controlToken?: Hex;
+  buttonAuthorization?: {policy: "forward-button-v1"; contextHash: Hex; owner: Address; authenticatedAt: string; pressedAt?: number};
   run?: RoverRun; error?: string;
   skipApproval?: {context: RoverSkipContext; signature?: Hex; authorizedAt?: string};
   analysis?: RoverVideoResult;
@@ -28,7 +32,8 @@ export type RoverSessionRecord = {
   };
 };
 export type RoverPaymentBundle = {
-  version: 1; context: RoverSessionContext; authorizationSignature: Hex;
+  version: 1; context: RoverSessionContext; authorizationSignature: Hex | null;
+  buttonAuthorization?: RoverSessionRecord["buttonAuthorization"];
   skipApproval: RoverSessionRecord["skipApproval"] | null; operationRecordHash: Hex;
   forwardPressed: true; videoRecognitionSkipped: boolean; video: RoverVideoResult;
 };
@@ -44,6 +49,7 @@ export type RoverSkipContext = {
   sessionContextHash: Hex; operationRecordHash: Hex; nonce: Hex; issuedAt: number; expiresAt: number;
 };
 export type RoverRunRequest = {
+  buttonControl?: true;
   sessionId: string; jobId: string; chainId: number; core: Address; judgmentMode: JudgmentMode;
   operation: RoverOptions["operation"]; durationMs: number; speed: number; cameraUrl: string | null; conditionsHash: Hex; policyHash: Hex; expiresAt: number;
 };
@@ -59,6 +65,7 @@ export type RoverRun = {
 };
 export function roverRunRequest(context: RoverSessionContext): RoverRunRequest {
   return {sessionId: context.sessionId, jobId: context.jobId, chainId: context.chainId, core: context.core,
+    ...(context.paymentPolicy === "forward-button-v1" ? {buttonControl: true as const} : {}),
     ...context.options, cameraUrl: context.cameraUrl, conditionsHash: context.conditionsHash, policyHash: context.policyHash, expiresAt: context.expiresAt};
 }
 

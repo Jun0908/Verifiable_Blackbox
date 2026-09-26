@@ -37,11 +37,11 @@ export async function completeRoverSession(jobId: unknown, sessionId: unknown, s
       await save();
       return record;
     }
-    if (!record.analysis) record.analysis = await analyzeRecordedSession(record);
+    if (!record.analysis && !record.buttonAuthorization) record.analysis = await analyzeRecordedSession(record);
     const bundle = await roverPaymentBundle(record, Math.max(Math.floor(Date.now() / 1000), Number(block.timestamp)));
     if (!record.payment) {
       if (job.status !== 1) throw Error("JOB_NOT_FUNDED");
-      if (!bundle.videoRecognitionSkipped) await recordedBytes(record);
+      if (!bundle.videoRecognitionSkipped && !record.buttonAuthorization) await recordedBytes(record);
       record.payment = {phase: "ELIGIBLE", bundle, evidence: demoEvidenceToWire({jobId: id, scenario: "success", robotId: "rover-demo-001",
         challenge: expectedChallenge(id, "success"), capturedAt: block.timestamp, imageHash: roverHash(bundle), checkpoint: "checkpoint-a", sequence: 1n})};
       await save();

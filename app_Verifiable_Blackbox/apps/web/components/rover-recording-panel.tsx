@@ -12,13 +12,14 @@ export function RoverRecordingPanel({record}: {record: RoverSessionRecord}) {
   const [failed, setFailed] = useState(false);
   const count = record.run?.recording.frames.length ?? 0;
   const ready = ["CAPTURED", "ERROR"].includes(record.phase);
+  const credential = record.controlToken ?? record.authorizationSignature;
   useEffect(() => {
-    if (!ready || !count || !record.authorizationSignature) return;
+    if (!ready || !count || !credential) return;
     const controller = new AbortController();
     let url: string | undefined;
     setFailed(false);
     void fetch("/api/demo/rover/session/frame", {method: "POST", headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({jobId: record.context.jobId, sessionId: record.context.sessionId, signature: record.authorizationSignature, index}),
+      body: JSON.stringify({jobId: record.context.jobId, sessionId: record.context.sessionId, signature: credential, index}),
       signal: controller.signal}).then(async response => {
       if (!response.ok) throw Error("FRAME_UNAVAILABLE");
       const blob = await response.blob();
@@ -26,13 +27,13 @@ export function RoverRecordingPanel({record}: {record: RoverSessionRecord}) {
       url = URL.createObjectURL(blob); setFrame({url, index});
     }).catch(() => {if (!controller.signal.aborted) {setFailed(true); setPlaying(false);}});
     return () => {controller.abort(); if (url) URL.revokeObjectURL(url);};
-  }, [ready, count, index, record.authorizationSignature, record.context.jobId, record.context.sessionId]);
+  }, [ready, count, index, credential, record.context.jobId, record.context.sessionId]);
   useEffect(() => {
     if (!playing || failed || frame?.index !== index) return;
     const timer = setTimeout(() => {if (index + 1 < count) setIndex(index + 1); else setPlaying(false);}, 100);
     return () => clearTimeout(timer);
   }, [playing, failed, frame, index, count]);
-  const pressed = record.run?.forwardPressed;
+  const pressed = record.buttonAuthorization ? Boolean(record.buttonAuthorization.pressedAt) : record.run?.forwardPressed;
   const video = record.analysis;
   return <section className="rover-recording" aria-label={t("Operation and video result", "操作と動画判定")}>
     <h3>{t("Operation and video result", "操作と動画判定")}</h3>

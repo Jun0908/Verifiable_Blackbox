@@ -67,10 +67,12 @@ export async function analyzeRecordedSession(record: RoverSessionRecord): Promis
 
 export async function analyzeRoverSession(jobId: unknown, sessionId: unknown, signature: unknown) {
   const owner = await ownedSession(jobId, sessionId, signature);
+  if (!["CAPTURED", "ERROR"].includes(owner.phase)) throw Error("RUN_NOT_FINISHED");
+  const analysis = owner.analysis ?? await analyzeRecordedSession(owner);
   return sessionStore().update(owner.context.jobId, async job => {
     const record = job.sessions.find(s => s.context.sessionId === owner.context.sessionId);
-    if (!record?.run || !["CAPTURED", "ERROR"].includes(record.phase)) throw Error("RUN_NOT_FINISHED");
-    if (!record.analysis) record.analysis = await analyzeRecordedSession(record);
+    if (!record || !["CAPTURED", "ERROR"].includes(record.phase)) throw Error("RUN_NOT_FINISHED");
+    if (!record.analysis) record.analysis = analysis;
     return record;
   });
 }
