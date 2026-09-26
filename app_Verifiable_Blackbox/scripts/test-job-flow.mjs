@@ -19,6 +19,6 @@ assert.equal(controlHasEnded(active),false);recordControlEnded(active);assert.eq
 for(const alternate of [{...active,jobId:'14'},{...active,chainId:11155111},{...active,core:'0x'+'9'.repeat(40)},{...active,wallet:'0x'+'9'.repeat(40)}])assert.equal(controlHasEnded(alternate),false);
 assert.equal(loadDemoState(scope).verified,false,'Operation must not set verified');
 storeDemoState(scope,{...job,source:'fixture'},{verified:false});assert.equal(readActiveRobotJob(scope),undefined);
-storeDemoState(scope,job,{verified:true});assert.equal(readActiveRobotJob(scope),undefined,'Paid job cannot become active rover work');
+storeDemoState(scope,job,{verified:true});assert.equal(readActiveRobotJob(scope).jobId,'13','Paid job keeps manual controls available');
 localStorage.setItem(activeJobKey(scope),'broken');assert.equal(readActiveRobotJob(scope),undefined);
-console.log('PASS: selected-job wallet/chain/core isolation, sample/paid exclusion, scoped operation markers and malformed storage.');
+console.log('PASS: selected-job wallet/chain/core isolation, sample exclusion, paid-job controls, scoped operation markers and malformed storage.');

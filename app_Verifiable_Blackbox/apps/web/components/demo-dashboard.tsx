@@ -7,8 +7,8 @@ import {useDemoWallet} from "./wallet-context";
 import {WorldDisclosure} from "./world-disclosure";
 import Link from "next/link";
 import {JobProgress} from "./job-progress";
-import {DemoReview} from "./demo-review";
-import type {DemoReviewRecord} from "@/lib/demo-review";
+import {RoverPaymentStatus} from "./rover-payment-status";
+import type {RoverSessionRecord} from "@/lib/rover-session";
 import {readJobHistory, saveJobToHistory, type JobHistoryEntry, type ScenarioResult, type StoredDemoStateV3} from "@/lib/job-history";
 import {controlHasEnded} from "@/lib/job-flow";
 import {SiteHeader} from "./site-header";
@@ -78,7 +78,7 @@ export function DemoDashboard() {
   const [failureJobId, setFailureJobId] = useState<string>();
   const [failureMessage, setFailureMessage] = useState<string>();
   const [busy, setBusy] = useState<string>();
-  const [demoReview, setDemoReview] = useState<DemoReviewRecord>();
+  const [roverRecord, setRoverRecord] = useState<RoverSessionRecord>();
   const [reviewBusy, setReviewBusy] = useState(false);
   const [history, setHistory] = useState<JobHistoryEntry[]>([]);
   const [operationEnded, setOperationEnded] = useState(false);
@@ -186,7 +186,7 @@ export function DemoDashboard() {
 
   useEffect(() => {
     setJob(undefined); setStatus(undefined); setVerified(false); setOperationEnded(false);
-    setDemoReview(undefined);
+    setRoverRecord(undefined);
     setReviewBusy(false);
     setVerifier(undefined); setVerdictSignature(undefined); setCompleteTransactionHash(undefined);
     if (!ready || (!walletsReady && !selectedWalletAddress)) return;
@@ -364,7 +364,7 @@ export function DemoDashboard() {
         verdictSignature:saved.verdictSignature, completeTransactionHash:saved.completeTransactionHash});
       setJob(restored); setStatus(latestStatus); setVerified(latestStatus.status === 3);
       setVerifier(saved.verifier); setVerdictSignature(saved.verdictSignature);
-      setCompleteTransactionHash(saved.completeTransactionHash); setDemoReview(undefined);
+      setCompleteTransactionHash(saved.completeTransactionHash); setRoverRecord(undefined);
       setFailureMessage(undefined);
       setMessage(t("Saved job opened. Its latest payment status is shown.", "保存した仕事を開きました。最新の支払い状態を表示しています。"));
     } catch {setMessage(t("Could not open that job. Your current job is unchanged.", "仕事を開けませんでした。現在の仕事は保持しています。"));}
@@ -382,7 +382,7 @@ export function DemoDashboard() {
         job:{...created, jobId:created.jobId.toString()}, verified:false}));
       setJob(created); setStatus(undefined); setVerified(false); setVerifier(undefined);
       setVerdictSignature(undefined); setCompleteTransactionHash(undefined); setOperationEnded(false);
-      setFailureMessage(undefined); setDemoReview(undefined);
+      setFailureMessage(undefined); setRoverRecord(undefined);
       setStatus(await readStatus(created.jobId));
       setMessage("Job ready. Continue to robot controls.");
     } catch (error) {setMessage(error instanceof Error ? error.message : "Could not create job.");}
@@ -395,7 +395,7 @@ export function DemoDashboard() {
       saveCurrentJob();
       setBusy("Creating, funding, and submitting a Fixture Job…");
       setFailureMessage(undefined);
-      setDemoReview(undefined);
+      setRoverRecord(undefined);
       setVerified(false);
       setVerifier(undefined);
       setVerdictSignature(undefined);
@@ -475,23 +475,23 @@ export function DemoDashboard() {
   const canCreate = canSwitchJob && !openJob;
   const canOperate = authenticated && job?.source === "rover" && status?.status === 1 && !restoring && !busy;
 
-  const receiveReview = useCallback((record: DemoReviewRecord) => {
-    setDemoReview(record);
+  const receiveReview = useCallback((record: RoverSessionRecord) => {
+    setRoverRecord(record);
     if (!job || !selectedWalletAddress) return;
-    const verifiedRecord = Boolean(record.verification);
+    const verifiedRecord = Boolean(record.payment?.verification);
     setVerified(verifiedRecord);
-    setVerifier(record.verification?.verifier);
-    setVerdictSignature(record.verification?.signature);
-    setCompleteTransactionHash(record.completeTransactionHash);
-    storeDemoState(historyScope, job, {verified: verifiedRecord, verifier: record.verification?.verifier,
-      verdictSignature: record.verification?.signature, completeTransactionHash: record.completeTransactionHash});
+    setVerifier(record.payment?.verification?.verifier);
+    setVerdictSignature(record.payment?.verification?.signature);
+    setCompleteTransactionHash(record.payment?.completeTransactionHash);
+    storeDemoState(historyScope, job, {verified: verifiedRecord, verifier: record.payment?.verification?.verifier,
+      verdictSignature: record.payment?.verification?.signature, completeTransactionHash: record.payment?.completeTransactionHash});
     void readStatus(job.jobId).then(next => setStatus(current => current?.jobId === next.jobId ? next : current)).catch(() => {});
   }, [job, selectedWalletAddress, readStatus]);
 
   const explorerLink = (hash?: Hex) =>
     hash && deployment?.explorerUrl ? `${deployment.explorerUrl}/tx/${hash}` : undefined;
 
-  const robotId = (demoReview?.context.jobId === job?.jobId.toString() ? demoReview?.evidence?.robotId : undefined)
+  const robotId = (roverRecord?.context.jobId === job?.jobId.toString() ? roverRecord?.payment?.evidence?.robotId : undefined)
     ?? job?.evidence?.robotId;
   const showRegisteredRobot = job?.source === "rover" && robotId === registeredRobot.robotId
     && deployment?.chainId === registeredRobot.chainId;
@@ -509,7 +509,7 @@ export function DemoDashboard() {
   const signerAddress = verifier?.signerAddress ?? (roverSettled ? deployment?.mockTeeSigner : undefined);
 
   return <main className="shell">
-    <SiteHeader />
+    <SiteHeader roverJobId={job?.source === "rover" ? job.jobId.toString() : undefined} />
     <section className="hero"><div>
       <h1>{t("Verified work.", "確かめた仕事に。 ")}<br />{t("Approved payment.", "承認して、支払いを。")}</h1>
       <p>{t("Create a job, operate the robot, then verify and pay.", "仕事を作成し、ロボットを操作。検証して支払いへ進みます。")}</p>
@@ -525,15 +525,15 @@ export function DemoDashboard() {
 
     <section className="workspace-grid"><article className="panel flow-panel">
       <div className="panel-heading"><div><span className="eyebrow">{t("YOUR JOB", "仕事の状況")}</span><h2>{t("From work to payment", "仕事から支払いまで")}</h2></div><span className="job-pill">{job ? `#${job.jobId}` : t("NO JOB", "仕事なし")}</span></div>
-      <JobProgress created={Boolean(job && status && status.status >= 1)} sample={job?.source === "fixture"} operated={job?.source === "rover" ? operationEnded || Boolean(demoReview?.authorizationSignature) : Boolean(status && status.status >= 2)} verified={verified || status?.status === 3} paid={status?.status === 3} />
+      <JobProgress created={Boolean(job && status && status.status >= 1)} sample={job?.source === "fixture"} operated={job?.source === "rover" ? Boolean(roverRecord?.buttonAuthorization?.pressedAt) || status?.status === 3 : Boolean(status && status.status >= 2)} verified={verified || status?.status === 3} paid={status?.status === 3} />
       <div className="next-action">
         {restoring ? <p>{t("Loading your job…", "仕事を読み込んでいます…")}</p> : !authenticated ? <><p>{t("Sign in to create your first job.", "ログインして仕事を作成してください。")}</p><button onClick={() => login()} disabled={!ready}>{t("Sign in to begin", "ログインして開始")}</button></> : !openJob ? <><h3>{t(status?.status === 3 ? "Ready for the next job?" : "Start a robot job", status?.status === 3 ? "次の仕事を始めますか？" : "ロボットの仕事を始める")}</h3><p>{t("Reserve 100 mUSDC. Pressing Forward pays the Provider once, including a short press. Video results are for reference.", "100 mUSDCを預けます。短い操作でも前ボタンを押した記録でProviderに1回支払います。動画判定は参考結果です。")}</p><button onClick={() => void handleStartRover()} disabled={!canCreate}>{t(job ? "Create new job" : "1. Create job", job ? "新しい仕事を作成" : "1. 仕事を作成")}</button></> : canOperate ? <>
-          <h3>{t(operationEnded ? "Control session ended" : "Your robot is next", operationEnded ? "操作セッションが終了しました" : "次はロボットを操作")}</h3>
-          <p>{operationEnded ? t("Continue with verification and payment below.", "下の「検証して支払う」へ進んでください。") : t("Your job number is carried over automatically.", "仕事番号は自動で引き継がれます。")}</p>
-          {!operationEnded && !demoReview?.authorizationSignature && <Link className="primary-link" href={{pathname:"/rover", query:{job:job!.jobId.toString()}}}>{t("2. Operate robot", "2. ロボットを操作")} <span>→</span></Link>}
+            <h3>{t(operationEnded ? "Continue robot controls" : "Your robot is next", operationEnded ? "ロボットの操作を続ける" : "次はロボットを操作")}</h3>
+            <p>{t("Tap Forward once to complete this Job and start payment. No minimum hold time.", "前ボタンを一瞬押すとJob完了・支払いへ進みます。長押しは不要です。")}</p>
+          <Link className="primary-link" href={{pathname:"/rover", query:{job:job!.jobId.toString()}}}>{t("2. Operate robot", "2. ロボットを操作")} <span>→</span></Link>
         </> : <p>{t(job?.source === "fixture" ? "Continue with the payment simulation below." : "Waiting for the job status to update.", job?.source === "fixture" ? "下の支払いシミュレーションを続けてください。" : "仕事の状態の更新を待っています。")}</p>}
       </div>
-      {job?.source === "rover" && selectedWallet && <DemoReview key={`${selectedWallet.address}:${job.createTransactionHash}`} jobId={job.jobId.toString()} wallet={selectedWallet} available={operationEnded || status?.status === 2} closed={Boolean(status && status.status >= 3)} onRecord={receiveReview} onBusyChange={setReviewBusy} />}
+      {job?.source === "rover" && selectedWallet && <RoverPaymentStatus key={`${selectedWallet.address}:${job.createTransactionHash}`} jobId={job.jobId.toString()} closed={Boolean(status && status.status >= 3)} onRecord={receiveReview} onBusyChange={setReviewBusy} />}
       <details className="optional-tools"><summary>{t("Other options", "その他の操作")}</summary>
       <section className="sample-tools"><h3>{t("Start another job", "新しい仕事を始める")}</h3>
         <p>{t("Keep this job in history and reserve 100 mUSDC for a new one. Switching does not refund the previous job.", "現在の仕事を履歴に残し、新しい仕事に100 mUSDCを預けます。前の仕事の報酬は自動返金されません。")}</p>
@@ -555,7 +555,7 @@ export function DemoDashboard() {
     <article className="panel proof-panel"><div className="panel-heading"><div><span className="eyebrow">{t("RECEIPT", "領収書")}</span><h2>{t("Payment & evidence", "支払いと証拠")}</h2></div><span className={`status ${status?.status === 3 ? "success" : ""}`}>{t(status ? jobStatusNames[status.status] : "Waiting")}</span></div>
       <dl className="proof-list">
         <div><dt>{t("Job", "仕事")}</dt><dd>{job ? `#${job.jobId}` : "—"}</dd></div>
-        <div><dt>{t("Evidence source", "証拠の種類")}</dt><dd>{demoReview?.authorizationSignature ? t("Signed approval document", "署名付き承認文書") : job?.source === "fixture" ? t("Sample", "サンプル") : job ? t("Robot adapter", "ロボット中継") : "—"}</dd></div>
+          <div><dt>{t("Evidence source", "証拠の種類")}</dt><dd>{roverRecord?.buttonAuthorization?.pressedAt ? t("Forward button record", "前ボタンの押下記録") : job?.source === "fixture" ? t("Sample", "サンプル") : job ? t("Robot adapter", "ロボット中継") : "—"}</dd></div>
         <div><dt>{t("Receipt ID", "領収書ID")}</dt><dd>{status?.receiptId !== ZERO_BYTES32 ? short(status?.receiptId,10) : "—"}</dd></div>
         <div><dt>{t("Payment transaction", "支払い取引")}</dt><dd>{explorerLink(completeTransactionHash) ? <a href={explorerLink(completeTransactionHash)} target="_blank" rel="noreferrer">{short(completeTransactionHash)} ↗</a> : <span title={completeTransactionHash}>{short(completeTransactionHash,10)}</span>}</dd></div>
         <div><dt>{t("Attestation", "実行環境の証明")}</dt><dd>{attestationPath ? <a href={attestationPath} target="_blank" rel="noreferrer">{t("View report", "レポートを見る")} ↗</a> : "—"}</dd></div>
@@ -570,8 +570,8 @@ export function DemoDashboard() {
           <div><dt>{t("Device signature verifier", "機体署名の検証Contract")}</dt><dd><a href={registeredRobot.verifierUrl} target="_blank" rel="noreferrer">ERC-7913 · Sepolia ↗</a></dd></div>
           <div><dt>{t("Device signature · this job", "このJobの機体署名")}</dt><dd>{t("Not checked", "未照合")}</dd></div>
         </>}
-        {demoReview?.authorizationSignature && <div><dt>{t("Verification scope", "検証の対象")}</dt><dd>{t("Signed approval document", "署名付き承認文書")}</dd></div>}
-        {demoReview?.authorizationSignature && <div><dt>{t("Physical movement proof", "実移動の証明")}</dt><dd>{t("Not included in this demo", "このデモの検証対象外")}</dd></div>}
+          {roverRecord?.buttonAuthorization?.pressedAt && <div><dt>{t("Verification scope", "検証の対象")}</dt><dd>{t("Forward button record", "前ボタンの押下記録")}</dd></div>}
+        {roverRecord?.buttonAuthorization?.pressedAt && <div><dt>{t("Physical movement proof", "実移動の証明")}</dt><dd>{t("Not included in this demo", "このデモの検証対象外")}</dd></div>}
         <div><dt>{t("Evidence", "証拠")}</dt><dd>{short(status?.evidenceCommitment,10)}</dd></div>
         <div><dt>{t("Signature", "署名")}</dt><dd>{short(verdictSignature,10)}</dd></div>
         <div><dt>{t("Verifier", "検証者")}</dt><dd>{verifierLabel}</dd></div>

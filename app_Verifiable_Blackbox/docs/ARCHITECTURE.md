@@ -498,6 +498,8 @@ Bundleのハッシュを`DemoEvidenceV1.imageHash`へ格納し、Provider提出�
 
 決済はJob単位で排他・永続化し、TransactionハッシュとReceiptを保存する。再送・再読み込み時は同じTransactionとChain状態を照合する。送信結果不明のまま追加送金しない。Rover Jobへのサンプル決済APIの直接呼び出しは拒否する。
 
+概要画面も同じ操作セッションを読み込む。押下なしでは操作画面へのリンクを表示し、押下済みで支払い未完了なら`rover/complete`から保存済みの支払いを再開する。画面を表示するだけでは送金しない。ナビゲーションの「操作」は選択中のJobを引き継ぎ、支払い完了後も操作画面へ戻れる。
+
 ### 配置と確認範囲
 
 - `components/rover-job-controls.tsx`, `rover-control.tsx`: 全方向・アーム・カメラ・速度選択、隠し設定、押下記録、動画結果、支払い結果。

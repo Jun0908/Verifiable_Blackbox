@@ -69,7 +69,7 @@ try {
   env.DEMO_TEE_PRIVATE_KEY=toHex(0xa11cen,{size:32});
   env.DEMO_RELAYER_PRIVATE_KEY='0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
   for(const file of ['tsconfig.json','next-env.d.ts']) generatedFiles.set(file,await readFile(resolve(web,file),'utf8'));
-  launch(process.execPath,[resolve(root,'node_modules/next/dist/bin/next'),'dev',...(worldCheck?['--webpack']:[]),'--hostname','127.0.0.1','--port','3017'],{cwd:web,env});
+  launch(process.execPath,[resolve(root,'node_modules/next/dist/bin/next'),'dev','--webpack','--hostname','127.0.0.1','--port','3017'],{cwd:web,env});
   await waitFor(async()=>{const response=await fetch(base+'/api/demo/config',{signal:AbortSignal.timeout(15000)});assert.equal(response.status,200);assert.equal((await response.json()).chainId,31337);});
   browser=await chromium.launch({headless:true,...(process.platform==='win32'?{channel:'msedge'}:{})});
   page=await browser.newPage({viewport:{width:1440,height:1050}});page.setDefaultTimeout(60000);
@@ -102,6 +102,13 @@ try {
   assert.equal((await request('/api/demo/rover/complete',credentials(untouched))).status,409);
   assert.equal((await request('/api/demo/rover/session/start',{...credentials(untouched),signature:'0x'+'00'.repeat(32),action:'start'})).status,403);
   assert.equal((await request('/api/demo/rover/session/direct',{jobId,skipVideo:false},{origin:'http://evil.test'})).status,403);
+  let reviewCalls=0;
+  page.on('request',r=>{if(r.url().includes('/api/demo/rover/review'))reviewCalls++;});
+  await page.getByRole('button',{name:'Return to overview',exact:false}).click();
+  await page.getByText('No Forward press has been recorded for this Job. Open robot controls and tap Forward once.',{exact:true}).waitFor();
+  assert.equal(await page.getByRole('button',{name:'Verify & pay',exact:true}).count(),0);
+  assert.equal(await page.getByRole('button',{name:'Resume saved payment',exact:true}).count(),0);
+  await page.getByRole('link',{name:/2\. Operate robot/}).click();await ready();
   await connect();
   for(const name of ['Reverse','Left','Right','Turn left','Turn right']) await tap(name);
   await page.getByRole('button',{name:'Release',exact:true}).click();
@@ -128,6 +135,14 @@ try {
   const blockBefore=await client.getBlockNumber({cacheTime:0});
   assert.equal((await request('/api/demo/rover/complete',credentials(first))).status,200);
   assert.equal(await client.getBlockNumber({cacheTime:0}),blockBefore);
+  await page.getByRole('button',{name:'Return to overview',exact:false}).click();
+  await page.getByText('Payment completed',{exact:true}).waitFor();
+  assert.equal(await page.getByRole('button',{name:'Verify & pay',exact:true}).count(),0);
+  assert.equal(await page.getByRole('button',{name:'Resume saved payment',exact:true}).count(),0);
+  await page.getByRole('link',{name:/Return to robot controls/}).click();
+  await page.getByText(/Payment completed/).waitFor();
+  assert.equal(await page.getByRole('button',{name:'Connect robot',exact:true}).isEnabled(),true);
+  assert.equal(reviewCalls,0);
   await page.reload({waitUntil:'domcontentloaded'});
   await page.getByRole('button',{name:'Sign in',exact:true}).first().click();
   await page.getByText(/Payment completed/).waitFor();

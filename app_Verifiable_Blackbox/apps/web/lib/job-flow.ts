@@ -4,7 +4,7 @@ export const DEMO_STORAGE_KEY = 'vbb-active-job-v1:';
 export type ActiveRobotJob = JobHistoryScope & {jobId:string;createTransactionHash:string};
 export function readActiveRobotJob(scope:JobHistoryScope):ActiveRobotJob|undefined {
   const stored=loadDemoState(scope);
-  if(!stored || stored.job.source!=='rover' || stored.verified)return;
+  if(!stored || stored.job.source!=='rover')return;
   return {...scope,jobId:stored.job.jobId,createTransactionHash:stored.job.createTransactionHash};
 }
 function operationKey(job:ActiveRobotJob) {
