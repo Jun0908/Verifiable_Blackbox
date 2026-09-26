@@ -66,13 +66,9 @@ export function LedgerPage() {
       {errorMessage && <p className="ledger-error" role="alert">{translate(errorMessage)}</p>}
       {view?.state === "not_configured" && <p>{t("Set MULTIBAAS_URL and MULTIBAAS_API_KEY on the server to fetch payments.","ServerにMULTIBAAS_URLとMULTIBAAS_API_KEYを設定すると取得できます。")}</p>}
       {view && <>
-        <p className="ledger-muted">{t("Selected scope","取得対象")}: {view.selection.jobs.length} Job · {[...new Set(view.selection.jobs.flatMap(j=>j.transactions))].length} Tx · {t("Through Sep 26, 2026 (JST)","2026年9月26日まで（日本時間）")}<br/>
-          {t("Required confirmations","必要確認数")}: {view.confirmationsRequired} · {view.fetchedAt ? `${t("Fetched","取得時刻")}: ${stamp(view.fetchedAt)} JST` : t("Not fetched yet","未取得")}
-          {view.range?.startBlock != null && <><br/>{t("Block range","取得ブロック範囲")}: {view.range.startBlock}–{view.range.endBlock}</>}
-        </p>
         <div className="ledger-totals"><div><span>{t("Payment total","支払い総額")}</span><strong>{formatAmount(view.totalMinor)} <small>mUSDC</small></strong></div>
           <div><span>{t("Matched total","照合済み金額")}</span><strong>{formatAmount(view.matchedMinor)} <small>mUSDC</small></strong></div></div>
-        {view.saved && <p className="ledger-notice">{t("Showing saved results at the fetch time above. Refresh to check chain data.","表示した取得時刻の保存済み結果です。更新してChainのデータを確認できます。")}</p>}
+        {view.saved && <p className="ledger-notice">{t("Showing saved results. Refresh to check chain data.","保存済み結果です。更新してChainのデータを確認できます。")}</p>}
         {!view.payments.length && <p>{t("No payment records to display.","表示する支払実績はありません。")}</p>}
         {view.payments.map(p=><article key={p.id} className="ledger-payment">
           <div className="ledger-actions"><h3>Job {p.jobId}</h3><span className={`ledger-badge ${p.status}`}>{translate(paymentText[p.status])}</span><strong>{p.amountDisplay} mUSDC</strong></div>
