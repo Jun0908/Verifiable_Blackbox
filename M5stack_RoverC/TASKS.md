@@ -62,11 +62,11 @@
 
 依存: T03。
 
-- [ ] `web_bridge_server.py`と`RoverWebBridge`を作り、loopbackと起動ごとのBearer tokenでAPIを提供する。
-- [ ] activate・drive・release・stop、Web session、単調増加sequenceを実装する。
-- [ ] 450ms更新切れでゼロ指令とrelease待ち、800ms Telemetry切れで停止・切断、60秒無操作で切断する。
-- [ ] 停止の要求中・完了・確認失敗を状態として分ける。
-- [ ] 起動時にはARMせず、`physicalMovementVerified=false`、`paymentEnabled=false`を返す。
+- [x] `web_bridge_server.py`と`RoverWebBridge`を作り、loopbackと起動ごとのBearer tokenでAPIを提供する。
+- [x] activate・drive・release・stop、Web session、単調増加sequenceを実装する。
+- [x] 450ms更新切れでゼロ指令とrelease待ち、800ms Telemetry切れで停止・切断、60秒無操作で切断する。
+- [x] 停止の要求中・完了・確認失敗を状態として分ける。
+- [x] 起動時にはARMせず、`physicalMovementVerified=false`、`paymentEnabled=false`を返す。
 
 完了条件: 模擬時計とControllerで正常操作・遅延・再送・通信断・停止失敗を試験できる。期限切れ後のdriveだけでは操作が再開しない。
 
