@@ -72,6 +72,15 @@ def create_handler(bridge, token, *, serve_web=False, port=8765, camera=None, re
                 return self.send_bytes(200, data, content_type)
             if not self.authorized():
                 return self.reply(403, {"error": "Forbidden"})
+            if jobs is not None and urlsplit(self.path).path in {"/jobs/recording", "/jobs/frame"}:
+                try:
+                    query = parse_qs(urlsplit(self.path).query)
+                    session = query.get("sessionId", [None])[0]
+                    frame = urlsplit(self.path).path == "/jobs/frame"
+                    index = int(query.get("index", [""])[0]) if frame else None
+                    return self.send_bytes(200, jobs.recording(session, index), "image/jpeg" if frame else "application/octet-stream")
+                except (ValueError, KeyError, OSError):
+                    return self.reply(409, {"error": "RECORDING_UNAVAILABLE"})
             if jobs is not None and urlsplit(self.path).path == "/jobs/status":
                 try:
                     session = parse_qs(urlsplit(self.path).query).get("sessionId", [None])[0]

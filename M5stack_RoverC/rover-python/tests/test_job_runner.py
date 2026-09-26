@@ -129,6 +129,11 @@ class JobRunnerTests(unittest.TestCase):
         for phase in ("RECORDING", "OPERATING", "STOPPING"):
             self.assertGreaterEqual(sum(f["phase"] == phase for f in record["recording"]["frames"]), 3)
         self.assertTrue((Path(self.directory.name) / request["sessionId"] / "recording.mjpeg").is_file())
+        self.assertEqual(len(self.runner.recording(request["sessionId"])), record["recording"]["bytes"])
+        self.assertTrue(self.runner.recording(request["sessionId"], 0).startswith(b"\xff\xd8"))
+        (Path(self.directory.name) / request["sessionId"] / "0000.jpg").write_bytes(b"changed")
+        with self.assertRaisesRegex(BridgeError, "RECORDING_HASH_MISMATCH"):
+            self.runner.recording(request["sessionId"], 0)
 
     def test_stationary_run_never_sends_nonzero_drive(self):
         request = self.request("VIDEO", "STILL")

@@ -106,6 +106,25 @@ class RoverJobRunner:
                 self.bridge.release_job(request["sessionId"])
                 raise
 
+    def recording(self, session, index=None):
+        record = self.status(session)
+        if record["phase"] not in {"CAPTURED", "ERROR"}:
+            raise BridgeError("RECORDING_NOT_FINISHED")
+        folder = self._directory(session)
+        if index is None:
+            path, expected = folder / "recording.mjpeg", record["recording"].get("sha256")
+        else:
+            frames = record["recording"]["frames"]
+            if type(index) is not int or not 0 <= index < len(frames):
+                raise BridgeError("FRAME_NOT_FOUND")
+            path, expected = folder / f"{index:04d}.jpg", frames[index]["sha256"]
+        if not expected or not path.is_file() or path.stat().st_size > 64 * 1024 * 1024:
+            raise BridgeError("RECORDING_UNAVAILABLE")
+        data = path.read_bytes()
+        if hashlib.sha256(data).hexdigest() != expected:
+            raise BridgeError("RECORDING_HASH_MISMATCH")
+        return data
+
     def input(self, session, action, sequence):
         with self.lock:
             record = self.current

@@ -60,12 +60,33 @@ class Handler(BaseHTTPRequestHandler):
             'busy': LOCK.locked(), 'model_loaded': ENGINE is not None,
             'model_available': (MODEL_ROOT / 'xclip/model.safetensors').is_file(),
             'device': 'cpu', 'threads': TORCH_THREADS, 'available': ready,
+            'jobRecordingSupported': True,
         })
 
     def do_POST(self):
         global ENGINE
         if not self.allowed():
             return self.reply(403, {'error': 'origin_rejected'})
+        if self.path == '/analyze-recording':
+            try:
+                length = int(self.headers.get('Content-Length', '0'))
+                if not 0 < length <= 90 * 1024 * 1024 or self.headers.get_content_type() != 'application/json':
+                    raise ValueError()
+                self.connection.settimeout(20)
+                request = json.loads(self.rfile.read(length))
+            except (ValueError, OSError):
+                return self.reply(400, {'error': 'invalid_request'})
+            if not LOCK.acquire(blocking=False):
+                return self.reply(409, {'error': 'busy'})
+            try:
+                from job_recording import analyze
+                return self.reply(200, analyze(request))
+            except (ValueError, TypeError, KeyError):
+                return self.reply(422, {'error': 'input_integrity_failed'})
+            except Exception:
+                return self.reply(500, {'error': 'analysis_failed'})
+            finally:
+                LOCK.release()
         if self.path != '/analyze':
             return self.reply(404, {'error': 'not_found'})
         try:

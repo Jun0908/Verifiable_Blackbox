@@ -18,6 +18,13 @@ export type RoverSessionRecord = {
   authorizationSignature?: Hex; authorizedAt?: string;
   run?: RoverRun; error?: string;
   skipApproval?: {context: RoverSkipContext; signature?: Hex; authorizedAt?: string};
+  analysis?: RoverVideoResult;
+};
+export type RoverVideoResult = {
+  version: 1; source: "job-recording"; chainId: number; core: Address; jobId: string; sessionId: string;
+  recordingSha256: string | null; policyHash: Hex; judgment: "MOVING" | "STILL" | "INCONCLUSIVE";
+  execution: "ANALYZED" | "UNAVAILABLE" | "SKIPPED"; reason: string | null;
+  executionId: string; analyzedAt: string; frameCount?: number;
 };
 export type RoverSkipContext = {
   version: 1; purpose: "SKIP_VIDEO_AFTER_STOP"; chainId: number; core: Address;
