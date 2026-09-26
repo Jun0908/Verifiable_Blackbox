@@ -34,6 +34,27 @@ WORLD_INTERNAL_TOKEN=<開示サービスと同じ共有鍵>
 
 `MODE=world` で公式接続します。公式イベント環境は模擬IDです。ローカル試験だけの場合は `MODE=rehearsal` と `BASE_URL=http://localhost:8787` を明示します。公式接続失敗時の自動切替はありません。
 
+### Demoと一緒に起動する
+
+設定後の `node scripts/start-sepolia-web.mjs` は、ローカルのWorld開示サービスも起動します。起動済みなら接続して利用します。`--no-world` で自動起動を省略できます。HTTPSトンネルは別途起動しておきます。
+
+一時URLを使う場合の例:
+
+```powershell
+cloudflared tunnel --url http://127.0.0.1:8787 --no-autoupdate
+```
+
+表示されたHTTPS URLをサービスの `BASE_URL` に設定し、rootで `node services/world-idp/scripts/setup.mjs` を実行します。[World Portal](https://sandbox.auth.world.org/portal)の対象Clientにも `https://取得したホスト/auth/world/callback` を登録し、サービスとWebを再起動します。一時URLはトンネル再起動で変わるため、継続利用には固定URLを使ってください。
+
+### 接続を確認する
+
+支払い完了後の動画画面は、サービス・共有キー・承認対象所有者・公開HTTPS接続を確認してから開示リンクを作成できます。エラー表示に従って設定または接続を修正し、「接続を再確認」を押します。Worldの停止は操作や支払いを止めません。
+
+- `GET /health`: サービス名・接続モード・Sandbox表示だけを返します。
+- `GET /internal/health`: 共有キーを持つServerが設定の一致と承認対象の設定有無を確認します。
+- 接続確認が成功しても、PortalのCallback設定と公式認証の成功は別途確認が必要です。
+- 録画のないJobには開示リンクを作成しません。録画を保存したJobを開いてください。
+
 ## 操作
 
 1. 録画を保存したJobの詳細・領収書で「映像の開示リンクを作成」を押します。

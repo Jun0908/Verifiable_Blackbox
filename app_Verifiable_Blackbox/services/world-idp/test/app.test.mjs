@@ -6,6 +6,19 @@ import { fileURLToPath } from 'node:url';
 import { createApp } from '../src/app.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
+test('health checks expose no credentials and authenticate internal readiness', async t => {
+  const f = await fixture(t,{internalToken:'test-internal-token',allowedOwners:['0x'+'11'.repeat(20)]});
+  const browser = f.browser();
+  const publicHealth = await browser('/health');
+  assert.equal(publicHealth.status,200);
+  assert.deepEqual(await publicHealth.json(),{ok:true,service:'vbb-world-disclosure',mode:'rehearsal',sandbox:false});
+  assert.equal((await browser('/internal/health')).status,403);
+  const authorized = await browser('/internal/health',undefined,{Authorization:'Bearer test-internal-token'});
+  assert.equal(authorized.status,200);
+  const body = await authorized.json();assert.equal(body.ownersConfigured,true);
+  assert.equal(JSON.stringify(body).includes('test-internal-token'),false);
+  assert.equal((await browser('/internal/health',undefined,{Authorization:'Bearer test-internal-token',Origin:f.base})).status,403);
+});
 async function fixture(t, options = {}) {
   let clock = Date.now();
   // Bind first to select an available port; requests start only after base is set.
