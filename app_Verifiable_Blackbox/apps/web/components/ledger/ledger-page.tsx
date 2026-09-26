@@ -1,6 +1,7 @@
 "use client";
 import {useEffect, useRef, useState} from "react";
 import {SiteHeader} from "@/components/site-header";
+import {MonthlyPanel} from "./monthly-panel";
 import {useLanguage} from "@/components/language";
 import {formatAmount} from "@/lib/ledger/monthly-demo";
 import type {LedgerState} from "@/lib/server/curvegrid/state";
@@ -24,6 +25,7 @@ export function LedgerPage() {
   const {language,t} = useLanguage();
   const translate = (pair: readonly [string,string]) => t(pair[0],pair[1]);
   const [view,setView] = useState<View | null>(null);
+  const [tab,setTab] = useState<"payments" | "monthly">("payments");
   const [busy,setBusy] = useState(false);
   const [error,setError] = useState<string | null>(null);
   const refreshing = useRef(false);
@@ -53,7 +55,11 @@ export function LedgerPage() {
     <section className="ledger-heading"><p className="ledger-eyebrow">CURVEGRID MULTIBAAS · SEPOLIA</p>
       <h1>{t("Payment ledger","支払台帳")}</h1><p>{t("Trace each payment through its Job, evidence and receipt.","支払いをJob・Evidence・Receiptの根拠まで確認できます。")}</p>
     </section>
-    <section className="panel ledger-panel" aria-busy={busy}>
+    <div className="ledger-tabs" role="group" aria-label={t("Ledger view","台帳の表示")}>
+      <button className={tab === "payments" ? "" : "secondary"} aria-pressed={tab === "payments"} onClick={()=>setTab("payments")}>{t("Payment records","支払実績")}</button>
+      <button className={tab === "monthly" ? "" : "secondary"} aria-pressed={tab === "monthly"} onClick={()=>setTab("monthly")}>{t("Monthly sample","月次集計デモ")}</button>
+    </div>
+    {tab === "monthly" ? <MonthlyPanel/> : <section className="panel ledger-panel" aria-busy={busy}>
       <div className="ledger-actions"><h2>{t("Payment records","支払実績")}</h2>
         <button disabled={busy || !view?.configured} onClick={()=>void refresh()}>{busy ? t("Fetching…","取得中…") : t("Refresh from MultiBaas","MultiBaasから更新")}</button></div>
       <p role="status">{busy ? translate(stateText.loading) : view ? translate(stateText[view.state]) : t("Loading ledger…","台帳を読み込み中…")}</p>
@@ -80,6 +86,6 @@ export function LedgerPage() {
           </details>
         </article>)}
       </>}
-    </section>
+    </section>}
   </main>;
 }
