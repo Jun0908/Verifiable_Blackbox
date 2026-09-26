@@ -67,7 +67,7 @@ export async function analyze(value:unknown) {
 export async function health() {
   const data=await upstream("health");
   if(data?.application!=="vbb-stegavar"||data.version!==1||typeof data.busy!=="boolean"||typeof data.model_loaded!=="boolean"||typeof data.model_available!=="boolean")throw new StegavarError("SERVICE_MISMATCH",503);
-  return {state:data.busy?"busy":"ready",modelLoaded:data.model_loaded,modelAvailable:data.model_available,device:"cpu"};
+  return {state:data.busy?"busy":"ready",modelLoaded:data.model_loaded,modelAvailable:data.model_available,device:"cpu",servicePid:data.pid};
 }
 export const json=(body:unknown,status=200)=>Response.json(body,{status,headers:{"Cache-Control":"no-store"}});
 export function failure(error:unknown) {return error instanceof StegavarError?json({error:error.code},error.status):json({error:"UNAVAILABLE"},503);}
