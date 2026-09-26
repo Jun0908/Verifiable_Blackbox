@@ -17,7 +17,7 @@
 | StegaVARの公開映像・比較・再解析（T18〜T24） | 完了。今回撮影したRaw動画の受付もT27で実装済み |
 | Privyログインによる所有者確認・操作用セッション・隠し設定（T25） | 実装済み。操作前の追加署名なしで利用できる |
 | 前ボタンの押下・解放、録画・前進送信と停止の記録（T26） | 完了。模擬機体で確認 |
-| Worldによる映像開示（T34〜T38） | 設計追加。公式接続の通し確認、実Jobとの紐付け、アプリ導線は未着手 |
+| Worldによる映像開示（T34〜T38） | T35〜T37を実装し模擬Jobで確認。公式discovery接続済み。T34・T38の公式ブラウザ認証と実Jobの有人確認が残る |
 
 **前ボタン記録・Raw動画の3択判定・画面表示・押下による支払いを実装済み。模擬Bridgeとローカルチェーンで確認。実機・Privyログイン・実Phala・Sepolia決済の有人通し確認はT32に残る。**
 
@@ -482,6 +482,10 @@ node scripts/test-stegavar-browser.mjs
 - [ ] 公式案内に沿い、接続に要した時間・問題点・改善提案を短い統合フィードバックへまとめる。
 
 完了条件: 「支払い後、権限を持つ人がWorldで認証して映像を開示する」と「承認が成立しなければ映像を開示しない」を実演できる。公式イベント環境の模擬IDであることを明示する。
+
+実装確認: OIDC・映像登録・期限・取消・別セッション・公開HTTPSと内部接続先の分離について20試験が成功。`node --import ./scripts/register-ts.mjs --experimental-transform-types scripts/test-rover-session-browser.mjs --world`で、専用Anvil・模擬BridgeのJob録画登録、ハッシュ照合、承認後のフレーム再生、別ブラウザ拒否、取消・拒否、日英表示と390px幅を確認。Roverの短い押下・動画スキップ・解析停止中の支払い・二重払い防止も成功。型チェックとproduction buildが成功。実機は動かしておらず、公式認証成功・実PhalaとSepoliaの通し確認は未完了。
+
+人間による準備: `services/world-idp/.env`の`WORLD_APPROVER_OWNERS`にJob所有者を設定し、公開HTTPSとPortalのcallbackを一致させる。設定手順と承認者コードの場所は[開示サービスREADME](../services/world-idp/README.md)を参照。公式画面で承認・キャンセルを行ってT34を確認し、録画がある実JobでT38を実施する。
 
 ## 今回の範囲
 
