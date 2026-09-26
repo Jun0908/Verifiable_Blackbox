@@ -1,18 +1,20 @@
 import "server-only";
 import {ChainsApi, Configuration, type TransactionReceiptData} from "@curvegrid/multibaas-sdk";
-import {contracts, selection, settings} from "./config";
+import {contracts, settings} from "./config";
 import {validateSelection, withinCutoff, type Selection} from "@/lib/ledger/types";
 import {buildLedger, deduplicate, normalizeRawLog, type LedgerEvent, type Payment} from "@/lib/ledger/payment-ledger";
+import {discoverSelection} from "./discovery";
 
 export type Snapshot = {
   version: 1; source: "multibaas"; fingerprint: string; fetchedAt: string;
   range: {startBlock: number | null; endBlock: number | null; chainHead: number};
   events: LedgerEvent[]; receipts: Record<string, TransactionReceiptData>; payments: Payment[];
+  selection?: Selection;
 };
 export function client(config = settings()) {
   if (!config.configured) throw Error("NOT_CONFIGURED");
   return new ChainsApi(new Configuration({basePath:config.baseUrl, accessToken:config.key,
-    baseOptions:{timeout:15000, maxRedirects:0, signal:AbortSignal.timeout(120000)}}));
+    baseOptions:{timeout:15000, maxRedirects:0, signal:AbortSignal.timeout(300000)}}));
 }
 const unwrap = <T>(data: {status: number; result: T}) => {
   if (data.status < 200 || data.status >= 300 || data.result == null) throw Error("INVALID_RESPONSE");
@@ -25,12 +27,15 @@ export function safeError(error: unknown): string {
   const codes = ["NOT_CONFIGURED","WRONG_CHAIN","RECEIPT","REORG","CUTOFF","SELECTION","BUSY","RATE_LIMIT","INVALID_RESPONSE"];
   return codes.includes(e.message ?? "") ? e.message! : "FETCH_FAILED";
 }
-export async function fetchSnapshot(config = settings(), api = client(config), selected: Selection = selection): Promise<Snapshot> {
-  const hashes = validateSelection(contracts, selected);
+export async function fetchSnapshot(config = settings(), api = client(config), selected?: Selection): Promise<Snapshot> {
   const status = unwrap((await api.getChainStatus()).data);
   if (status.chainID !== contracts.chainId) throw Error("WRONG_CHAIN");
   if (!Number.isSafeInteger(status.blockNumber) || status.blockNumber < 0) throw Error("INVALID_RESPONSE");
-  const anchor = unwrap((await api.getBlock(String(status.blockNumber))).data).hash.toLowerCase();
+  const anchorBlock = unwrap((await api.getBlock(String(status.blockNumber))).data);
+  const anchor = anchorBlock.hash.toLowerCase();
+  selected ??= await discoverSelection(contracts,config.discoveryFromBlock,status.blockNumber,anchor,
+    new Date((anchorBlock.timestamp+1)*1000).toISOString());
+  const hashes = validateSelection(contracts, selected);
   const receipts: Snapshot["receipts"] = {};
   const events: LedgerEvent[] = [];
   const targets = [contracts.core, contracts.hook, contracts.token, ...contracts.evaluators].map(a => a.toLowerCase());
@@ -63,5 +68,5 @@ export async function fetchSnapshot(config = settings(), api = client(config), s
   if (unwrap((await api.getBlock(String(status.blockNumber))).data).hash.toLowerCase() !== anchor) throw Error("REORG");
   return {version:1, source:"multibaas", fingerprint:config.fingerprint, fetchedAt:new Date().toISOString(),
     range:{startBlock:blocks.size ? Math.min(...blocks.keys()) : null, endBlock:blocks.size ? Math.max(...blocks.keys()) : null, chainHead:status.blockNumber},
-    events:normalized, receipts, payments};
+    events:normalized, receipts, payments, selection:selected};
 }

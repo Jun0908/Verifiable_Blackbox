@@ -26,6 +26,17 @@ test("selected receipt reads match payment; empty selection is empty",async()=>{
   assert.equal((await fetchSnapshot(config,f.api,{...f.chosen,jobs:[]})).payments.length,0);
   assert.ok(!JSON.stringify(s).includes('secret'));
 });
+test("a newly discovered Job survives snapshot restore",async()=>{
+  const directory=await mkdtemp(join(tmpdir(),"vbb-ledger-"));
+  try {
+    const f=setup();const snapshot=await fetchSnapshot(config,f.api,f.chosen);
+    const state=new LedgerState(config,directory,async()=>snapshot);await state.refresh();
+    const restored=new LedgerState(config,directory);await restored.load();
+    assert.equal(restored.publicState().payments[0].jobId,"9");
+    assert.equal(restored.publicState().payments[0].status,"matched");
+    assert.deepEqual(restored.publicState().selection,f.chosen);
+  } finally {await rm(directory,{recursive:true,force:true});}
+});
 test("wrong chain, cutoff, receipt identity and reorg are rejected",async()=>{
   const a=setup();a.api.getChainStatus=(async()=>({data:{status:200,result:{chainID:1,blockNumber:120}}})) as never;
   await assert.rejects(()=>fetchSnapshot(config,a.api,a.chosen),/WRONG_CHAIN/);
