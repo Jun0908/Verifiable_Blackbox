@@ -8,7 +8,7 @@ English | [日本語](README.ja.md)
 |---|---|
 | **Demo video** | [Watch the demo on YouTube](https://youtu.be/E3z8Gu1oNS8) |
 | **Live app** | [Explore the public demo on Vercel](https://verifiable-blackbox-preview.vercel.app/) |
-| **Architecture** | [System architecture and component responsibilities](app_Verifiable_Blackbox/docs/ARCHITECTURE.en.md) · [日本語](app_Verifiable_Blackbox/docs/ARCHITECTURE.md) |
+| **Architecture** | [System architecture and component responsibilities (English)](https://github.com/Jun0908/Verifiable_Blackbox/blob/main/app_Verifiable_Blackbox/docs/ARCHITECTURE.en.md) |
 | **Source code** | [GitHub](https://github.com/Jun0908/Verifiable_Blackbox) |
 
 ![Verifiable Blackbox protocol architecture](assets/architecture.png)

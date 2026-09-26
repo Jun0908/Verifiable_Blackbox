@@ -8,7 +8,7 @@
 |---|---|
 | **Demo video** | [YouTubeでデモ動画を見る](https://youtu.be/E3z8Gu1oNS8) |
 | **Live app** | [Vercelの公開デモを開く](https://verifiable-blackbox-preview.vercel.app/) |
-| **Architecture** | [システム構成と各コンポーネントの役割](https://github.com/Jun0908/Verifiable_Blackbox/blob/main/app_Verifiable_Blackbox/docs/ARCHITECTURE.md) |
+| **Architecture** | [システム構成と各コンポーネントの役割（英語版）](https://github.com/Jun0908/Verifiable_Blackbox/blob/main/app_Verifiable_Blackbox/docs/ARCHITECTURE.en.md) |
 | **Source code** | [GitHub](https://github.com/Jun0908/Verifiable_Blackbox) |
 
 ![Verifiable Blackboxのプロトコル構成図](assets/architecture.png)
