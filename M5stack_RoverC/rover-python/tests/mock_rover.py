@@ -83,7 +83,7 @@ class MockRover:
     def run_udp(self):
         while not self.done.is_set():
             try: data, address = self.udp.recvfrom(1024)
-            except socket.timeout: data = b''
+            except (socket.timeout, ConnectionResetError): data = b''
             with self.lock:
                 if len(data) == 34 and zlib.crc32(data[:-4]) == struct.unpack('<I',data[-4:])[0]:
                     fields = struct.unpack('<IBBHIIhhhBBBBII',data)

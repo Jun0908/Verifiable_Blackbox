@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="bridge-token" content="__BRIDGE_TOKEN__">
+<title>RoverC Pro · Web Control</title>
+<link rel="stylesheet" href="/style.css"><script src="/app.js" defer></script><script src="/camera.js" defer></script>
+</head>
+<body>
+<main>
+<header><div><p class="eyebrow">M5STACK / ROVERC PRO</p><h1 data-i18n="title">Robot controls</h1></div><nav aria-label="Language"><button id="en" type="button">EN</button><button id="ja" type="button">日本語</button></nav></header>
+<section class="connection"><span class="dot"></span><span id="status" role="status">Checking connection…</span><button id="connect" type="button" data-i18n="connect">Connect robot</button></section>
+<p class="hint" data-i18n="intro">Close the Windows control app before connecting. Hold a direction to drive; release to stop.</p>
+<div class="layout">
+<section class="panel"><section class="camera-panel">
+<div class="camera-heading"><h2 data-camera-i18n="title">Camera</h2><span id="camera-state" role="status">Connecting to camera…</span></div>
+<div class="camera-viewport"><img id="camera-image" alt="Live rover camera" hidden><p id="camera-empty">Connecting to camera…</p></div>
+<details class="camera-settings"><summary data-camera-i18n="settings">Camera settings</summary>
+<div class="camera-control-row"><span data-camera-i18n="cameraSwitch">Camera</span><div role="group" aria-label="Camera on/off">
+<button type="button" id="camera-on" aria-pressed="true">ON</button><button type="button" id="camera-off" aria-pressed="false">OFF</button></div></div>
+<div class="camera-control-row"><span>Record</span><div role="group" aria-label="Recording on/off">
+<button type="button" id="record-on" aria-pressed="false" disabled>ON</button><button type="button" id="record-off" aria-pressed="true" disabled>OFF</button></div></div>
+<p id="record-status" role="status"></p>
+<p class="camera-help" data-camera-i18n="recordHint">Record OFF saves a WebM video on this PC. Leaving this tab stops recording.</p>
+<a id="record-download" hidden data-camera-i18n="download">Save recording again</a>
+
+
+<label for="camera-url" data-camera-i18n="address">Camera address</label>
+<div class="camera-input"><input id="camera-url" type="text" inputmode="url" placeholder="http://192.168.1.10:81/stream" autocomplete="off" spellcheck="false"><button id="camera-save" type="button" data-camera-i18n="save">Connect &amp; save</button></div>
+<p id="camera-notice" role="status"></p></details></section>
+<h2 data-i18n="drive">Drive</h2>
+<div class="pad">
+<button type="button" data-direction="turn-left" disabled><span>↶</span><b data-i18n="turnLeft">Rotate left</b></button>
+<button type="button" data-direction="forward" disabled><span>↑</span><b data-i18n="forward">Forward</b></button>
+<button type="button" data-direction="turn-right" disabled><span>↷</span><b data-i18n="turnRight">Rotate right</b></button>
+<button type="button" data-direction="left" disabled><span>←</span><b data-i18n="left">Left</b></button>
+<button type="button" id="stop" disabled><span>■</span><b data-i18n="stop">Stop</b></button>
+<button type="button" data-direction="right" disabled><span>→</span><b data-i18n="right">Right</b></button>
+<button type="button" class="back" data-direction="back" disabled><span>↓</span><b data-i18n="back">Backward</b></button>
+</div></section>
+<aside class="panel"><h2 data-i18n="speed">Speed</h2><div class="speeds">
+<button type="button" data-speed="35" aria-pressed="true" data-i18n="slow">Slow</button>
+<button type="button" data-speed="60" aria-pressed="false" data-i18n="normal">Normal</button>
+<button type="button" data-speed="85" aria-pressed="false" data-i18n="fast">Fast</button>
+</div><p class="hint" data-i18n="stopHint">The Stop button disconnects the robot. Connect again to resume.</p>
+<section class="gripper-panel"><h2 data-i18n="gripper">Gripper</h2>
+<div class="gripper-buttons"><button type="button" id="gripper-open" data-i18n="gripperOpen" disabled>Release</button>
+<button type="button" data-gripper="close" data-i18n="gripperClose" disabled>Hold to grab</button></div>
+<p class="hint" data-i18n="gripperHint">Hold to close gradually. Release the button at the position you want.</p></section>
+<details><summary data-i18n="details">Connection details</summary><dl><dt data-i18n="response">Robot response</dt><dd id="response">—</dd><dt data-i18n="motors">Motor output</dt><dd id="motors">—</dd><dt>Wi-Fi</dt><dd id="wifi">—</dd></dl></details>
+</aside></div>
+<p id="error" role="alert" hidden></p>
+<footer data-i18n="footer">Local Wi-Fi control</footer>
+</main>
+</body></html>
