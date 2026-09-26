@@ -133,11 +133,11 @@
 
 依存: T02。
 
-- [ ] `m5stick-c-plus2-signature`環境とfeature flagを追加し、通常buildと分ける。
-- [ ] P-256鍵のNVS生成・再読込、公開鍵取得、Job識別情報のhash・low-S署名を実装する。
-- [ ] 認証付き署名API、busy／ready／error、直近要求のキャッシュを実装する。
-- [ ] ARM中の署名、署名中のARMを拒否し、鍵破損時に自動再生成しない。
-- [ ] 署名処理を別taskで動かし、停止・watchdogを塞がない。
+- [x] `m5stick-c-plus2-signature`環境とfeature flagを追加し、通常buildと分ける。
+- [x] P-256鍵のNVS生成・再読込、公開鍵取得、Job識別情報のhash・low-S署名を実装する。
+- [x] 認証付き署名API、busy／ready／error、直近要求のキャッシュを実装する。
+- [x] ARM中の署名、署名中のARMを拒否し、鍵破損時に自動再生成しない。
+- [x] 署名処理を別taskで動かし、停止・watchdogを塞がない。
 
 完了条件: 通常buildと署名buildが成功し、固定fixtureのdigestをアプリ側と照合できる。実鍵生成・再起動後の公開鍵一致・署名確認はT12で実施する。
 
