@@ -10,6 +10,7 @@ export type RoverAccess = {
   requestId: string; issuedAt: number; options?: RoverOptions;
 };
 export type RoverSessionContext = {
+  controlMode?: "manual";
   paymentPolicy?: "forward-button-v1";
   version: 1; chainId: number; core: Address; evaluator: Address; token: Address;
   jobId: string; client: Address; provider: Address; budget: string; jobExpiresAt: string;
@@ -49,6 +50,7 @@ export type RoverSkipContext = {
   sessionContextHash: Hex; operationRecordHash: Hex; nonce: Hex; issuedAt: number; expiresAt: number;
 };
 export type RoverRunRequest = {
+  recordOnly?: true;
   buttonControl?: true;
   sessionId: string; jobId: string; chainId: number; core: Address; judgmentMode: JudgmentMode;
   operation: RoverOptions["operation"]; durationMs: number; speed: number; cameraUrl: string | null; conditionsHash: Hex; policyHash: Hex; expiresAt: number;
@@ -65,6 +67,7 @@ export type RoverRun = {
 };
 export function roverRunRequest(context: RoverSessionContext): RoverRunRequest {
   return {sessionId: context.sessionId, jobId: context.jobId, chainId: context.chainId, core: context.core,
+    ...(context.controlMode === "manual" ? {recordOnly: true as const} : {}),
     ...(context.paymentPolicy === "forward-button-v1" ? {buttonControl: true as const} : {}),
     ...context.options, cameraUrl: context.cameraUrl, conditionsHash: context.conditionsHash, policyHash: context.policyHash, expiresAt: context.expiresAt};
 }

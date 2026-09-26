@@ -18,6 +18,7 @@ class Controller:
         self.sequence = 0
         self.sent = []
         self.stop_ok = True
+        self.gripper_angle = 45
         self.api = SimpleNamespace(configure=lambda _: None, status=self.status)
 
     def connect(self):
@@ -29,11 +30,14 @@ class Controller:
     def send(self, command):
         self.sequence += 1
         self.sent.append(command)
+        if command.gripper_angle is not None:
+            self.gripper_angle = command.gripper_angle
         return self.sequence
 
     def receive_telemetry(self):
         return SimpleNamespace(uptime_ms=int(time.monotonic() * 1000) % (2**32), packet_age_ms=0,
-                               armed=self.armed, i2c_ok=True, motors_running=False, motors=(0, 0, 0, 0), rssi=-40)
+                               armed=self.armed, i2c_ok=True, motors_running=False, motors=(0, 0, 0, 0), rssi=-40,
+                               gripper_angle=self.gripper_angle, sequence=self.sequence)
 
     def emergency_stop(self):
         self.armed = False
@@ -115,6 +119,39 @@ class JobRunnerTests(unittest.TestCase):
         self.assertEqual(record["recording"]["state"], "ERROR")
         self.assertTrue(any(event["result"] == "SENT" and event["y"] == 1 for event in record["commands"]))
         self.assertTrue(record["stop"]["confirmed"])
+
+    def test_observer_never_arms_drives_or_stops_hardware(self):
+        request = {**self.request("VIDEO"), "recordOnly": True, "buttonControl": True}
+        self.runner.start(request)
+        self.wait_phase(request, "OPERATING")
+        time.sleep(0.25)
+        self.assertFalse(self.controller.armed)
+        self.assertEqual(self.controller.sent, [])
+        self.runner.stop(request["sessionId"])
+        record = self.finish(request, manual=False)
+        self.assertEqual(record["phase"], "CAPTURED")
+        self.assertTrue(record["recording"]["frames"])
+        self.assertEqual(self.controller.sent, [])
+        self.assertIsNone(record["stop"])
+
+    def test_observer_allows_all_manual_controls_and_keeps_connection_after_recording(self):
+        control = self.bridge.activate()["session"]
+        time.sleep(0.1)
+        request = {**self.request("VIDEO"), "recordOnly": True, "buttonControl": True}
+        self.runner.start(request)
+        self.wait_phase(request, "OPERATING")
+        for sequence, direction in enumerate(["forward", "back", "left", "right", "turn-left", "turn-right"], 1):
+            self.bridge.drive(control, sequence, direction, 35)
+            time.sleep(0.15)
+        self.bridge.release(control, 7)
+        self.runner.stop(request["sessionId"])
+        record = self.finish(request, manual=False)
+        self.assertEqual(record["phase"], "CAPTURED")
+        self.assertEqual(self.bridge.snapshot()["state"], "ready")
+        self.assertTrue(self.controller.armed)
+        self.assertTrue(any(event["y"] > 0 for event in record["commands"]))
+        self.bridge.drive(control, 8, "back", 35)
+        self.bridge.release(control, 9)
 
     def test_skip_runs_without_camera_and_records_sent_commands_and_stop_response(self):
         self.runner.camera = None

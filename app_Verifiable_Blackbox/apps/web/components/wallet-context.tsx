@@ -1,6 +1,6 @@
 "use client";
 import {createContext, useContext, useEffect, useMemo, useState, type ReactNode} from "react";
-import {usePrivy, useWallets, useSendTransaction, getAccessToken, type ConnectedWallet} from "@privy-io/react-auth";
+import {usePrivy, useWallets, useSendTransaction, getAccessToken, getIdentityToken, type ConnectedWallet} from "@privy-io/react-auth";
 import {createWalletClient, http, type Address, type Hex} from "viem";
 import {useLanguage} from "./language";
 
@@ -9,6 +9,7 @@ type WalletState = {
   ready:boolean; authenticated:boolean; login():void; logout():void;
   wallets:Wallet[];
   getAccessToken():Promise<string | null>;
+  getIdentityToken():Promise<string | null>;
   sendTransaction(tx:{to:Address; data:Hex}, options?:unknown):Promise<{hash:Hex}>;
 };
 const WalletContext = createContext<WalletState | null>(null);
@@ -21,7 +22,7 @@ export function PrivyWalletBridge({children}:{children:ReactNode}) {
   const {ready,authenticated,login,logout}=usePrivy();
   const {wallets,ready:walletsReady}=useWallets();
   const {sendTransaction}=useSendTransaction();
-  return <WalletContext.Provider value={{ready:ready && walletsReady,authenticated,login,logout,wallets,getAccessToken,sendTransaction:(tx,options)=>sendTransaction(tx,options as Parameters<typeof sendTransaction>[1])}}>{children}</WalletContext.Provider>;
+  return <WalletContext.Provider value={{ready:ready && walletsReady,authenticated,login,logout,wallets,getAccessToken,getIdentityToken,sendTransaction:(tx,options)=>sendTransaction(tx,options as Parameters<typeof sendTransaction>[1])}}>{children}</WalletContext.Provider>;
 }
 
 export function LocalWalletProvider({children}:{children:ReactNode}) {
@@ -43,8 +44,9 @@ export function LocalWalletProvider({children}:{children:ReactNode}) {
     return {address,walletClientType:'anvil-test',switchChain:async(id:number|Hex)=>{if(Number(id)!==31337)throw Error('Local chain only');await ensureLocal();},getEthereumProvider:async()=>provider,
       sendTransaction:async(tx:{to:Address;data:Hex})=>{await ensureLocal();return {hash:await client.sendTransaction({...tx,chain:null})};}};
   },[]);
-  return <WalletContext.Provider value={{ready,authenticated,login:()=>setAuthenticated(true),logout:()=>setAuthenticated(false),wallets:authenticated?[wallet]:[],getAccessToken:async()=>null,sendTransaction:wallet.sendTransaction}}>
+  return <WalletContext.Provider value={{ready,authenticated,login:()=>setAuthenticated(true),logout:()=>setAuthenticated(false),wallets:authenticated?[wallet]:[],getAccessToken:localToken,getIdentityToken:localToken,sendTransaction:wallet.sendTransaction}}>
     <aside className="sample-notice" role="status">{t('LOCAL DEMO · Public Anvil test wallet · Test tokens only · No personal wallet or physical work is verified.', 'ローカルデモ · 公開AnvilテストWallet · テストトークンのみ · 本人のWalletや物理作業は検証しません。')}</aside>
     {children}
   </WalletContext.Provider>;
 }
+async function localToken() {return null;}

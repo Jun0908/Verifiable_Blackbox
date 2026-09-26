@@ -55,7 +55,7 @@ class RoverWebBridge:
             raise BridgeError("ROVER_RESERVED")
 
     def _send(self, command):
-        event = {"sessionId": self.job_owner, "sequence": self.sequence, "sentAt": time.time(),
+        event = {"sessionId": self.job_owner or self.session, "sequence": self.sequence, "sentAt": time.time(),
                  "x": command.x, "y": command.y, "z": command.z, "speed": command.speed_limit,
                  "deadman": command.deadman}
         try:
@@ -66,8 +66,9 @@ class RoverWebBridge:
             event["result"] = "FAILED"
             raise
         finally:
-            if self.job_owner is not None and len(self.send_events) < 2000:
-                self.send_events.append(event)
+            self.send_events.append(event)
+            if len(self.send_events) > 2000:
+                del self.send_events[:-2000]
 
     def snapshot(self):
         with self.lock:

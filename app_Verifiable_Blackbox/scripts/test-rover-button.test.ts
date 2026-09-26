@@ -21,12 +21,41 @@ test("Privy login proves the Job wallet without a personal_sign request", async 
   };
   await verifyPrivyOwner(await sign(),"test-app",owner,keys,remote as typeof fetch);
   assert.equal(calls,1);
-  await assert.rejects(verifyPrivyOwner(await sign("other-app"),"test-app",owner,keys,remote as typeof fetch),/LOGIN_REQUIRED/);
-  await assert.rejects(verifyPrivyOwner(await sign("test-app",1),"test-app",owner,keys,remote as typeof fetch),/LOGIN_REQUIRED/);
+  await assert.rejects(verifyPrivyOwner(await sign("other-app"),"test-app",owner,keys,remote as typeof fetch),/LOGIN_TOKEN_INVALID/);
+  await assert.rejects(verifyPrivyOwner(await sign("test-app",1),"test-app",owner,keys,remote as typeof fetch),/LOGIN_TOKEN_INVALID/);
   assert.equal(calls,1);
   await assert.rejects(verifyPrivyOwner(await sign(),"test-app",toHex(2,{size:20}),keys,remote as typeof fetch),/JOB_OWNER_REQUIRED/);
   await assert.rejects(verifyPrivyOwner(await sign(),"test-app",owner,keys,async()=>Response.json({user:{id:"did:privy:other",linked_accounts:[]}})),/JOB_OWNER_REQUIRED/);
   await assert.rejects(verifyPrivyOwner(await sign(),"test-app",owner,keys,async()=>{throw Error("offline");}),/LOGIN_CHECK_UNAVAILABLE/);
+});
+
+test("signed Privy identity binds the wallet to the access-token user without a remote user lookup", async () => {
+  const {privateKey,publicKey}=await generateKeyPair("ES256");
+  const keys=createLocalJWKSet({keys:[{...await exportJWK(publicKey),kid:"test",alg:"ES256"}]});
+  const sign=(claims:Record<string,unknown>,sub="did:privy:owner",aud="test-app",exp:number|string="5m")=>new SignJWT(claims)
+    .setProtectedHeader({alg:"ES256",kid:"test"}).setIssuer("privy.io").setAudience(aud).setSubject(sub).setIssuedAt().setExpirationTime(exp).sign(privateKey);
+  const claims={linked_accounts:JSON.stringify([{type:"wallet",chain_type:"ethereum",address:owner}])};
+  const access=await sign({});
+  const offline=async()=>{throw Error("must not fetch user");};
+  await verifyPrivyOwner(access,"test-app",owner,keys,offline,await sign(claims));
+  await assert.rejects(verifyPrivyOwner(access,"test-app",owner,keys,offline,await sign(claims,"did:privy:other")),/LOGIN_IDENTITY_INVALID/);
+  await assert.rejects(verifyPrivyOwner(access,"test-app",owner,keys,offline,await sign(claims,"did:privy:owner","other-app")),/LOGIN_IDENTITY_INVALID/);
+  await assert.rejects(verifyPrivyOwner(access,"test-app",owner,keys,offline,await sign(claims,"did:privy:owner","test-app",1)),/LOGIN_IDENTITY_INVALID/);
+  await assert.rejects(verifyPrivyOwner(access,"test-app",toHex(2,{size:20}),keys,offline,await sign(claims)),/JOB_OWNER_REQUIRED/);
+});
+
+test("manual Forward press pays before recording finishes and freezes payment evidence", async () => {
+  const r=record(),now=Date.now()/1000;
+  r.context.controlMode="manual";r.buttonAuthorization!.contextHash=roverHash(r.context);
+  r.phase="OPERATING";
+  r.buttonAuthorization!.pressedAt=now;
+  const bundle=await roverPaymentBundle(r,now);
+  assert.equal(bundle.forwardPressed,true);
+  r.payment={phase:"VERIFYING",bundle,evidence:{} as NonNullable<RoverSessionRecord["payment"]>["evidence"]};
+  r.phase="CAPTURED";r.analysis={...bundle.video,judgment:"MOVING",execution:"ANALYZED"};
+  assert.deepEqual(await roverPaymentBundle(r,now+1),bundle);
+  delete r.buttonAuthorization!.pressedAt;
+  await assert.rejects(roverPaymentBundle(r,now),/FORWARD_PRESS_REQUIRED/);
 });
 
 function record(): RoverSessionRecord {

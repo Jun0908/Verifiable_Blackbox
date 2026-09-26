@@ -4,15 +4,16 @@ import {useDemoWallet} from "./wallet-context";
 import {useLanguage} from "./language";
 
 export function WorldDisclosure({jobId, sessionId}: {jobId: string; sessionId?: string}) {
-  const {getAccessToken} = useDemoWallet();
+  const {getAccessToken, getIdentityToken} = useDemoWallet();
   const {t} = useLanguage();
   const [busy, setBusy] = useState(false), [url, setUrl] = useState(""), [error, setError] = useState("");
   async function prepare() {
     setBusy(true); setError(""); setUrl("");
     try {
       const token = await getAccessToken();
+      const identityToken = await getIdentityToken();
       const response = await fetch("/api/demo/world/disclosure", {method: "POST", headers: {"Content-Type": "application/json",
-        ...(token ? {Authorization: `Bearer ${token}`} : {})}, body: JSON.stringify({jobId, ...(sessionId ? {sessionId} : {})})});
+        ...(token ? {Authorization: `Bearer ${token}`} : {}), ...(identityToken ? {"x-privy-identity-token": identityToken} : {})}, body: JSON.stringify({jobId, ...(sessionId ? {sessionId} : {})})});
       const result = await response.json();
       if (!response.ok) throw Error(result.error);
       setUrl(result.invitationUrl);

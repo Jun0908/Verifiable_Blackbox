@@ -28,7 +28,7 @@ Verifiable Blackboxは、ロボットの仕事に関する記録を検証し、E
 | ENS | 公開鍵レコードの読取と署名照合、領収書への登録情報表示 |
 | 支払台帳・月次集計 | `/ledger`でMultiBaasの支払実績、根拠照合、月次サンプル集計、CSV出力を扱う |
 | StegaVAR | `/stegavar`で映像比較・復元映像の同期再生・CPU再解析を提供する。Python処理は別サービスとする。詳細は第10節 |
-| 動画判定による報酬支払い | 動画認識を標準とし、発表者用の隠し設定でスキップ可能。承認した判定モードの条件を満たすとPhala検証・支払いへ進む。第11節・T25〜T32で実装する |
+| 動画判定による報酬支払い | 前ボタンの押下記録でPhala検証・支払いへ進む。動画認識は参考表示とし、隠し設定でスキップ可能。第11節・T25〜T32を参照 |
 | Worldによる映像開示 | 独立した開示サービスを再利用し、Job詳細・領収書から開示を依頼する。権限を持つ承認者のWorld認証後、依頼者へ5分間配信する。第12節・T34〜T38で追加する |
 
 PhalaはDemoEvidenceのデータとChain上のJobとの整合性を検証する。支払いには利用者の署名付き承認を必要とする。現在の決済経路に動画判定は含まれない。第11節では、走行指令・停止の記録に加え、承認した判定モードに応じて動画判定をアプリ側の条件にする。Phalaによる実移動・荷物運搬・映像の意味の判定は対象外とする。
@@ -135,7 +135,7 @@ DashboardはJob作成、進捗、履歴、領収書、サンプル決済を責�
 1. ClientがPrivyでLoginし、対象ChainとGas残高を確認する。Sepoliaで不足する場合はGas不要の補充要求メッセージに署名し、専用プールからのETH着金を確認する。Job作成前の確認に加え、画面の補充ボタンからも実行できる。
 2. `createAndFundDemo`で100 mUSDCのJobを作成する。Job IDは確定したTransactionの`JobCreated`イベントから取得する。これはテスト用Tokenを使うDemo専用処理である。
 3. `/rover`へ同じJobを引き継ぐ。Jobなしの自由操作は別経路として扱う。
-4. PrivyログインからJob所有者をServerで確認し、前ボタンを表示する。押すと接続・録画・操作を開始し、離すと停止する。操作前の追加署名は要求しない。
+4. PrivyログインからJob所有者をServerで確認し、前ボタンを表示する。接続後に全方向・アーム・カメラを操作できる。前ボタンの一瞬の押下でJob完了・支払いへ進み、離すと停止する。操作前の追加署名は要求しない。
 5. Serverが今回のJobの押下を記録する。短い押下でも支払いへ進む。動画判定は参考結果として独立して取得する。
 6. Serverが所有者・Job期限・対象記録とChain状態の一致を確認し、二重払いを防ぐ。
 7. 押下記録を含むBundleのhashを`DemoEvidenceV1.imageHash`へ入れる。Providerが同じEvidenceのcommitmentを提出する。
@@ -465,9 +465,9 @@ World認証による開示は第12節に従い、保護対象の映像をpublic�
 
 ### 操作と支払い条件
 
-Job作成時に100 mUSDCを入金し、「前ボタンを押した記録で1回支払う」と表示する。操作画面は大きな前ボタンを中心とし、走行時間・速度の入力、条件確認、操作用署名、記録開始の操作を要求しない。
+Job作成時に100 mUSDCを入金し、「前ボタンを押した記録で1回支払う」と表示する。操作画面には前後左右・左右回転・停止・アーム・カメラ・速度選択を表示する。接続後は全操作を使え、前ボタンを一瞬押すとJob完了・支払いへ進む。条件確認・操作用署名・記録開始の操作は要求しない。
 
-押している間だけ前進し、離すと停止する。約1秒の短い押下も記録する。接続中に離した場合は前進を取り消し、接続後に勝手に走らせない。離した際の停止、通信断時の自動停止、最大3秒の連続走行上限はBridge側で実行する。
+方向ボタンを押している間だけ動き、離すと停止する。押下の最小時間はなく、1秒の長押しも不要。解放が先に届いた通信遅延時には、遅れて届く走行要求を拒否する。Job完了・支払い中・支払い後も全操作を続けられる。通信断・画面離脱時にも停止する。
 
 | 今回のJobの前ボタン | 動画判定 | 報酬 |
 |---|---|---|
@@ -478,9 +478,9 @@ Job作成時に100 mUSDCを入金し、「前ボタンを押した記録で1回�
 
 ### ログインと操作権限
 
-Privyのログイン済みaccess tokenをServerへ送り、公開JWKSでES256署名・issuer・audience・期限を検証する。Privyの認証済みユーザー情報からEthereum Walletを取得し、オンチェーンJobのClientと照合する。アプリの追加秘密鍵や操作前のpersonal_signは不要。Privy React SDKが利用する認証済みユーザー取得APIを使う。
+Privyのログイン済みaccess tokenとidentity tokenをServerへ送り、公開JWKSでES256署名・issuer・audience・期限・同一本人を検証する。署名されたEthereum WalletをオンチェーンJobのClientと照合する。アプリの追加秘密鍵や操作前のpersonal_signは不要。Privy Dashboardで「Return user data in an identity token」を有効にする。
 
-`session/direct`は所有者確認後、Job単位のセッションとランダムな操作用tokenを発行する。準備だけでは機体を接続・走行させず、支払いも始めない。前ボタンを押すと`session/start`が`buttonAuthorization.pressedAt`を保存してBridgeへ接続する。支払い条件は`forward-button-v1`として記録し、新規Jobのdescriptionは`vbb://rover/forward-button-v1`とする。
+`session/direct`は所有者確認後、Job単位のセッションとランダムな操作用tokenを発行する。準備だけでは機体を接続・走行させず、支払いも始めない。機体接続と全方向操作は`rover/control`が担当し、接続後の録画は`recordOnly`で走行を制御せずに行う。前ボタンを押すと`session/start`の`press`が`buttonAuthorization.pressedAt`を保存し、録画終了を待たずに決済へ進む。支払い条件は`forward-button-v1`、新規Jobのdescriptionは`vbb://rover/forward-button-v1`とする。
 
 操作用tokenは対象Job・sessionIdに固定する。Serverが保存したtokenと同一Originの要求を照合し、開始・入力・記録閲覧・結果取得・決済に使用する。画面を開き直した際はPrivyで所有者を再確認して同じ実行を読み込む。公開Anvil Walletによる認証省略は、明示したローカルモード・loopback RPC・実chainId 31337・固定テストWalletの組合せだけで有効。
 
@@ -500,13 +500,13 @@ Bundleのハッシュを`DemoEvidenceV1.imageHash`へ格納し、Provider提出�
 
 ### 配置と確認範囲
 
-- `components/rover-button-panel.tsx`: 前ボタン、隠し設定、操作記録、動画結果、支払い結果。
+- `components/rover-job-controls.tsx`, `rover-control.tsx`: 全方向・アーム・カメラ・速度選択、隠し設定、押下記録、動画結果、支払い結果。
 - `lib/server/rover-session/owner.ts`: PrivyログインとJob所有者の照合。
 - `lib/server/rover-session/direct.ts`: 署名画面を使わないセッション準備。
-- `session/start`, `session/input`, `session/status`: 前ボタン操作と状態取得。
+- `rover/control`, `session/start`, `session/status`: 手動操作・押下記録・録画と状態取得。
 - `session/analyze`, `session/frame`: Raw動画の3択判定と録画閲覧。
 - `rover/complete`: 押下記録に基づく支払い・結果照合。
-- `M5stack_RoverC/rover-python/rover/job_runner.py`: 録画・走行・解放時の停止・通信断時の停止。
+- `M5stack_RoverC/rover-python/rover/job_runner.py`: 操作を占有しない録画。`web_bridge.py`: 手動操作と解放・通信断時の停止。
 
 模擬Bridge・実StegaVAR・専用Anvilで、短い押下、押下なし、接続中の解放、動画の参考判定、スキップ、支払い再送を確認する。実機・利用者のPrivyログイン・実Phala・Sepolia決済の有人通し確認はT32として残す。
 

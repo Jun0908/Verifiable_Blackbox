@@ -4,9 +4,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 function localRequest(request: Request, mutation: boolean) {
-  const host = request.headers.get("host");
-  if (host !== "localhost:3000" && host !== "127.0.0.1:3000") throw Error("Local dashboard only");
-  if (mutation && request.headers.get("origin") !== `http://${host}`) throw Error("Same-origin request required");
+  if (!isLocalBridgeRequest(request, mutation)) throw Error("Local same-origin dashboard only");
 }
 
 async function bridge(path: string, body?: unknown) {

@@ -19,7 +19,7 @@ async function command(body: unknown, keepalive = false): Promise<BridgeStatus> 
   return data;
 }
 
-export function RoverControl({onFinished, exitRef}: {onFinished: (operated: boolean) => void; exitRef: RefObject<(() => Promise<void>) | null>}) {
+export function RoverControl({onFinished, exitRef, onForwardPressed, onConnected}: {onFinished: (operated: boolean) => void; exitRef: RefObject<(() => Promise<void>) | null>; onForwardPressed?: () => void; onConnected?: () => void}) {
   const {t} = useLanguage();
   const [status, setStatus] = useState<BridgeStatus>();
   const [error, setError] = useState("");
@@ -120,6 +120,7 @@ export function RoverControl({onFinished, exitRef}: {onFinished: (operated: bool
       session.current = data.session; sequence.current = 0;
       if (!mounted.current || document.hidden || epoch !== stopEpoch.current) {stop(); return;}
       setStatus(data);
+      onConnected?.();
     } catch (e) {if (mounted.current) setError(e instanceof Error ? e.message : "Cannot connect. Check the robot power and Wi-Fi.");}
     finally {if (mounted.current) setConnecting(false);}
   }
@@ -155,8 +156,11 @@ export function RoverControl({onFinished, exitRef}: {onFinished: (operated: bool
   useEffect(() => {exitRef.current = finish; return () => {exitRef.current = null;};}, [exitRef, finish]);
 
   function begin(value: string) {
-    if (!canDrive || held.current) return;
-    setError(""); held.current = value; setDirection(value); sendDrive();
+    if (!canDrive) return;
+    if (held.current) release();
+    setError(""); held.current = value; setDirection(value);
+    if (value === "forward") onForwardPressed?.();
+    sendDrive();
   }
 
   return <section className="rover-control" aria-label={t("Robot controls", "ロボット操作パネル")}>

@@ -65,14 +65,14 @@ export async function startRoverSession(jobId: unknown, sessionId: unknown, sign
   const context = session.context;
   if (context.expiresAt <= Math.floor(Date.now() / 1000)) throw Error("SESSION_EXPIRED");
   if (!session.buttonAuthorization && context.options.judgmentMode === "VIDEO" && context.policyHash !== roverHash(await videoPolicy())) throw Error("CAMERA_OR_POLICY_CHANGED");
-  const job = await getFundedDemoJob(BigInt(context.jobId));
-  if (job.client.toLowerCase() !== context.client.toLowerCase() || job.provider.toLowerCase() !== context.provider.toLowerCase()
-    || job.budget.toString() !== context.budget || job.expiredAt.toString() !== context.jobExpiresAt) throw Error("SESSION_CONTEXT_CHANGED");
+  const job = session.context.controlMode === "manual" && session.buttonAuthorization?.pressedAt ? null : await getFundedDemoJob(BigInt(context.jobId));
+  if (job && (job.client.toLowerCase() !== context.client.toLowerCase() || job.provider.toLowerCase() !== context.provider.toLowerCase()
+    || job.budget.toString() !== context.budget || job.expiredAt.toString() !== context.jobExpiresAt)) throw Error("SESSION_CONTEXT_CHANGED");
   await sessionStore().update(context.jobId, async jobRecord => {
     const record = jobRecord.sessions.find(s => s.context.sessionId === context.sessionId);
     if (!record || !["AUTHORIZED", "STARTING"].includes(record.phase)) throw Error("SESSION_ALREADY_STARTED");
     if (record !== jobRecord.sessions.at(-1)) throw Error("SESSION_SUPERSEDED");
-    if (record.buttonAuthorization) record.buttonAuthorization.pressedAt ??= Date.now() / 1000;
+    if (record.buttonAuthorization && context.controlMode !== "manual") record.buttonAuthorization.pressedAt ??= Date.now() / 1000;
     record.phase = "STARTING";
   });
   // Retrying STARTING asks the Bridge for the same persistent run; it never creates another run.
@@ -85,6 +85,18 @@ export async function startRoverSession(jobId: unknown, sessionId: unknown, sign
       return record;
     });
   }
+}
+
+export async function recordForwardPress(jobId: unknown, sessionId: unknown, signature: unknown) {
+  const owned = await ownedSession(jobId, sessionId, signature);
+  return sessionStore().update(owned.context.jobId, async stored => {
+    const record = stored.sessions.find(s => s.context.sessionId === owned.context.sessionId);
+    if (!record || record !== stored.sessions.at(-1) || record.context.controlMode !== "manual" || !record.buttonAuthorization
+      || ["PREPARED", "SUPERSEDED", "EXPIRED"].includes(record.phase)) throw Error("SESSION_STATE_CHANGED");
+    if (Number(record.context.jobExpiresAt) <= Date.now()/1000) throw Error("JOB_EXPIRED");
+    record.buttonAuthorization.pressedAt ??= Date.now()/1000;
+    return record;
+  });
 }
 
 export async function roverRunStatus(jobId: unknown, sessionId: unknown, signature: unknown) {

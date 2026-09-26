@@ -58,7 +58,9 @@ class RoverJobRunner:
 
     def start(self, request):
         required = {"sessionId", "jobId", "chainId", "core", "judgmentMode", "operation", "durationMs", "speed", "cameraUrl", "conditionsHash", "policyHash", "expiresAt"}
-        if not isinstance(request, dict) or set(request) not in (required, required | {"buttonControl"}):
+        if not isinstance(request, dict) or not required.issubset(request) or set(request) - required - {"buttonControl", "recordOnly"}:
+            raise BridgeError("INVALID_RUN_REQUEST")
+        if "recordOnly" in request and (request["recordOnly"] is not True or request.get("buttonControl") is not True):
             raise BridgeError("INVALID_RUN_REQUEST")
         if "buttonControl" in request and request["buttonControl"] is not True:
             raise BridgeError("INVALID_RUN_REQUEST")
@@ -87,7 +89,8 @@ class RoverJobRunner:
                 raise BridgeError("SESSION_EXPIRED")
             if self.active is not None:
                 raise BridgeError("ROVER_BUSY")
-            self.bridge.claim_job(request["sessionId"])
+            if not request.get("recordOnly"):
+                self.bridge.claim_job(request["sessionId"])
             try:
                 record = {"version": 1, "request": request, "phase": "STARTING", "createdAt": time.time(),
                           "commands": [], "stop": None, "forwardPressed": None, "inputs": [],
@@ -105,7 +108,8 @@ class RoverJobRunner:
                 return response
             except Exception:
                 self.active = None
-                self.bridge.release_job(request["sessionId"])
+                if not request.get("recordOnly"):
+                    self.bridge.release_job(request["sessionId"])
                 raise
 
     def recording(self, session, index=None):
@@ -160,9 +164,11 @@ class RoverJobRunner:
         with self.lock:
             if self.active != session:
                 return self.status(session)
+            record_only = bool(self.current and self.current["request"].get("recordOnly"))
             self.cancelled.set()
-        with self.bridge.lock:
-            self.bridge.request_stop(None if self.bridge.state == "connecting" else self.bridge.session)
+        if not record_only:
+            with self.bridge.lock:
+                self.bridge.request_stop(None if self.bridge.state == "connecting" else self.bridge.session)
         return {"ok": True, "phase": "STOPPING"}
 
     def _wait(self, seconds, record, *, check_control=True):
@@ -188,6 +194,8 @@ class RoverJobRunner:
                         if not data.startswith(b"\xff\xd8") or not data.endswith(b"\xff\xd9") or len(data) > 2_000_000:
                             raise BridgeError("INVALID_CAMERA_FRAME")
                         if len(frames) >= 200 or total + len(data) > 64 * 1024 * 1024:
+                            if record["request"].get("recordOnly"):
+                                break
                             raise BridgeError("RECORDING_LIMIT")
                         index = len(frames)
                         name = f"{index:04d}.jpg"
@@ -205,6 +213,8 @@ class RoverJobRunner:
             recording.update(state="ERROR", error=str(error) if isinstance(error, BridgeError) else "RECORDING_FAILED")
 
     def _run(self, record):
+        if record["request"].get("recordOnly"):
+            return self._observe(record)
         request = record["request"]
         session, control_session = request["sessionId"], None
         capture = None
@@ -304,6 +314,49 @@ class RoverJobRunner:
                 if camera_owned:
                     self.camera.release_job(session)
                 self.bridge.release_job(session)
+                with self.lock:
+                    self.active = None
+                    self.current = None
+
+    def _observe(self, record):
+        """Record camera data without activating, driving or stopping the controller."""
+        session = record["request"]["sessionId"]
+        ended = threading.Event()
+        capture = None
+        camera_owned = False
+        try:
+            record["phase"] = "OPERATING"
+            record["operationStartedAt"] = time.time()
+            self._save(record)
+            if self.camera and self.camera.status()["receiving"]:
+                self.camera.claim_job(session)
+                camera_owned = True
+                capture = threading.Thread(target=self._capture, args=(record, ended), daemon=True)
+                capture.start()
+            else:
+                record["recording"]["state"] = "UNAVAILABLE"
+            deadline = time.monotonic() + 60
+            while not self.cancelled.wait(0.04) and time.monotonic() < deadline:
+                if time.time() >= record["request"]["expiresAt"] or (capture and not capture.is_alive()):
+                    break
+            record["phase"] = "CAPTURED"
+        except Exception:
+            record.update(phase="ERROR", error="RECORDING_FAILED")
+        finally:
+            ended.set()
+            if capture:
+                capture.join(timeout=3)
+            record["operationEndedAt"] = time.time()
+            record["completedAt"] = time.time()
+            # Motion remains a separate, manually controlled Bridge session.
+            with self.bridge.lock:
+                record["commands"] = [dict(event) for event in self.bridge.send_events
+                                      if event.get("sentAt", 0) >= record["createdAt"]]
+            try:
+                self._save(record)
+            finally:
+                if camera_owned:
+                    self.camera.release_job(session)
                 with self.lock:
                     self.active = None
                     self.current = None

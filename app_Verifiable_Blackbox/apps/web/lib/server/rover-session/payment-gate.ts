@@ -9,17 +9,20 @@ export async function roverPaymentBundle(record: RoverSessionRecord, now: number
     const approval = record.buttonAuthorization;
     if (approval.policy !== "forward-button-v1" || approval.owner.toLowerCase() !== c.client.toLowerCase()
       || approval.contextHash !== roverHash(c)) throw Error("SESSION_CONTEXT_CHANGED");
-    if (!["CAPTURED", "ERROR"].includes(record.phase)) throw Error("RUN_NOT_FINISHED");
+    if (c.controlMode !== "manual" && !["CAPTURED", "ERROR"].includes(record.phase)) throw Error("RUN_NOT_FINISHED");
+    if (["SUPERSEDED", "EXPIRED", "PREPARED"].includes(record.phase)) throw Error("SESSION_STATE_CHANGED");
     if (!Number.isFinite(approval.pressedAt) || approval.pressedAt! < c.issuedAt || approval.pressedAt! > now + 1
       || approval.pressedAt! >= Number(c.jobExpiresAt)) throw Error("FORWARD_PRESS_REQUIRED");
     if (Number(c.jobExpiresAt) <= now) throw Error("JOB_EXPIRED");
+    // The payment commits the press once. Later recording frames do not mutate it.
+    if (c.controlMode === "manual" && record.payment) return record.payment.bundle;
     const video = record.payment?.bundle.video ?? record.analysis ?? {version: 1 as const, source: "job-recording" as const,
       chainId: c.chainId, core: c.core, jobId: c.jobId, sessionId: c.sessionId, recordingSha256: run?.recording.sha256 ?? null,
       policyHash: c.policyHash, judgment: "INCONCLUSIVE" as const, execution: c.options.judgmentMode === "SKIP_VIDEO" ? "SKIPPED" as const : "UNAVAILABLE" as const,
       reason: c.options.judgmentMode === "SKIP_VIDEO" ? "VIDEO_RECOGNITION_SKIPPED" : "ANALYSIS_PENDING",
       executionId: c.sessionId, analyzedAt: new Date(c.issuedAt * 1000).toISOString()};
     return {version: 1, context: c, authorizationSignature: null, buttonAuthorization: approval, skipApproval: null,
-      operationRecordHash: roverHash({button: approval, run: run ?? null}), forwardPressed: true,
+      operationRecordHash: roverHash({button: approval, run: c.controlMode === "manual" ? null : run ?? null}), forwardPressed: true,
       videoRecognitionSkipped: c.options.judgmentMode === "SKIP_VIDEO", video};
   }
   await signatureFor(c.client, roverAuthorizationMessage(c), record.authorizationSignature);
