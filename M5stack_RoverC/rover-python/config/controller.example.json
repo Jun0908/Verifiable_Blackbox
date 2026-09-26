@@ -1,0 +1,21 @@
+{
+  "simple_setup_version": 1,
+  "guid": "",
+  "name": "",
+  "axis_x": 0,
+  "axis_y": 1,
+  "axis_z": 2,
+  "invert_x": false,
+  "invert_y": true,
+  "invert_z": false,
+  "deadman_button": 5,
+  "gripper_open_button": 0,
+  "gripper_close_button": 1,
+  "aux_decrease_button": 2,
+  "aux_increase_button": 3,
+  "precision_button": 4,
+  "emergency_button": 7,
+  "deadzone": 0.12,
+  "expo": 0.25,
+  "smoothing": 0.2
+}

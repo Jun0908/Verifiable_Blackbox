@@ -1,0 +1,13 @@
+{
+  "speed_limit": 35,
+  "precision_speed": 18,
+  "gripper_open_angle": 25,
+  "gripper_closed_angle": 75,
+  "gripper_min_angle": 10,
+  "gripper_max_angle": 90,
+  "aux_servo_min_angle": 45,
+  "aux_servo_max_angle": 135,
+  "axis_deadzone": 0.12,
+  "axis_expo": 0.25,
+  "motor_signs": [1, 1, 1, 1]
+}
